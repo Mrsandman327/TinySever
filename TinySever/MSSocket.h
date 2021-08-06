@@ -30,10 +30,20 @@ class CMSSocket
 public:
 	CMSSocket();
 	~CMSSocket();
-public:
+private:
 	/*Observable*/
 	std::list<CSocketObservable*> _observerlist;
 	socketevent _evnet;
+
+
+
+	/*data*/
+	struct recvdata{
+		char buffer[DATAPACKETSIZE];
+	};
+	std::queue<std::shared_ptr<recvdata>> _dataqueue;
+public:
+	/*Observable*/
 	void attach_observable(CSocketObservable *observer);
 	void dttach_observable(CSocketObservable* observer);
 	void clear_observable(){ _observerlist.clear();};
@@ -47,25 +57,27 @@ public:
 	void addclientsock(int s);
 	void delclientsock(int s);
 	int  getclientsocksize(){ return (int)_clientsocklist.size(); };
-public:
+private:
 	/*basic*/
 	int		init_skt();
 	int  	make_skt(); 
 	void    close_skt(int s);
-	int		send_skt(int s, char *data, int len);         
-	int		receive_skt(int s, char *data, int len);
 
 	/*op*/
 	bool    listen_skt(int s, std::string addr, int port);
 	bool	connect_skt(int s, std::string addr, int port);
-	void	clientclose(int s);
-	void	severclose(int s);
 
 	/*thread*/
 	void    accpet_skt(int s);
 	void    clientreceive_skt(int s);
 	void    severreceive_skt(int s);
 public:
+	/*basic*/
+	int		send_skt(int s, char *data, int len);
+	int		receive_skt(int s, char *data, int len);
+	void	clientclose(int s);
+	void	severclose(int s);
+
 	/*client*/
 	int client_connect(std::string addr, int port);
 
@@ -73,10 +85,6 @@ public:
 	int sever_create(std::string addr, int port);
 
 	/*get data*/
-	struct recvdata{
-		char buffer[DATAPACKETSIZE];
-	};
-	std::queue<std::shared_ptr<recvdata>> _dataqueue;
 	bool get_recvbuf(char **buffer);
 };
 

@@ -170,7 +170,7 @@ bool CMSSocket::connect_skt(int s, std::string addr, int port)
 			return false;
 		else
 			lAddr = *((unsigned long *)(h->h_addr));
-	}
+	}   
 
 	sockaddr_in sockAddr;
 	sockAddr.sin_family = AF_INET;
@@ -179,6 +179,7 @@ bool CMSSocket::connect_skt(int s, std::string addr, int port)
 
 	if (connect(s, (struct sockaddr *)&sockAddr, sizeof(sockAddr)) == SOCKET_ERROR)
 	{
+		printf("socket---connect error£¬code£º%d\n", WSAGetLastError());
 		close_skt(s);
 		return false;
 	}
@@ -350,7 +351,6 @@ int CMSSocket::client_connect(std::string addr, int port)
 	
 	if (!connect_skt(s, addr, port))
 	{
-		printf("socket---connect server error£¬code£º%d\n", WSAGetLastError());
 		return false;
 	}
 
