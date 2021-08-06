@@ -13,7 +13,6 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-
 	/*创建被订阅者*/
 	CMSSocket *socket = new CMSSocket;
 

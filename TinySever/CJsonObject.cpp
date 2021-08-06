@@ -7,7 +7,6 @@
  * @note
  * Modify history:
  ******************************************************************************/
-#include "stdafx.h"
 #include "CJsonObject.hpp"
 
 namespace neb

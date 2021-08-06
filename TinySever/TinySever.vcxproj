@@ -77,11 +77,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="cJSON.c" />
+    <ClCompile Include="CJsonObject.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MSServer.cpp" />
     <ClCompile Include="MSSocket.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="cJSON.h" />
+    <ClInclude Include="CJsonObject.hpp" />
     <ClInclude Include="DataStruct.h" />
     <ClInclude Include="MSServer.h" />
     <ClInclude Include="MSSocket.h" />

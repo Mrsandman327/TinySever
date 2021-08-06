@@ -14,12 +14,13 @@ enum COMMANDTYPE
 	COMMAND_GROUPCHAT/*群聊*/
 };
 
+/*二级结构体类型*/
 enum DATATYPE
 {
-	CHAT_TEXT,/*聊天文字*/
-	CHAT_FILE,/*聊天文件*/
+	CHAT_TEXT,/*聊天信息*/
+	CHAT_FILE,/*文件信息*/
 	USER_INFO,/*用户信息*/
-	RESULT_RETURN
+	RESULT_RETURN/*结果信息*/
 };
 
 enum RESULT
@@ -28,26 +29,17 @@ enum RESULT
 	OK
 };
 
-/*用户信息 300*/
-struct USERINFO{
+/*用户完整信息 462*/
+struct USERINFOALL
+{
 	char nickname[20];/*20*/
 	unsigned int userid;/*4*/
 	char password[20];/*20*/
 	char userdescription[256];/*256*/
-};
-
-/*文件信息 128*/
-struct OSSFILEINFO
-{
-	char bucket[64];
-	char object[64];
-};
-
-/*结果信息 129*/
-struct RESULTINFO
-{
-	char result;
-	char errorinfo[128];
+	unsigned char friendsize;/*1*/
+	unsigned char groupsize;/*1*/
+	unsigned int friendlist[20];/*80*/
+	unsigned int grouplist[20];/*80*/
 };
 
 /*聊天信息 1022*/
@@ -58,10 +50,32 @@ struct CHATINFO
 	char info[1014];/*1014*/
 };
 
+/*文件信息 128*/
+struct OSSFILEINFO
+{
+	char bucket[64];
+	char object[64];
+};
+
+/*用户信息 300*/
+struct USERINFO{
+	char nickname[20];/*20*/
+	unsigned int userid;/*4*/
+	char password[20];/*20*/
+	char userdescription[256];/*256*/
+};
+
+/*结果信息 513*/
+struct RESULTINFO
+{
+	unsigned char result;
+	char resultinfo[512];
+};
+
 /*1024*/ //花生壳带宽只有1M（1024byte），所以该结构体正好使用1024字节，防止分片
 struct DATAPACK{
-	char commandtype;/*命令类型 1byte*/
-	char datatype;/*数据类型 1byte*/
+	unsigned char commandtype;/*命令类型 1byte*/
+	unsigned char datatype;/*数据类型 1byte*/
 	char data[1022];/*数据 1022byte*/
 };
 
