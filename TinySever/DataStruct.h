@@ -11,7 +11,8 @@ enum COMMANDTYPE
 	COMMAND_ADDGROUND,/*加入群聊*/
 	COMMAND_DELGROUND,/*退出群聊*/
 	COMMAND_SINGLECHAT,/*单聊*/
-	COMMAND_GROUPCHAT/*群聊*/
+	COMMAND_GROUPCHAT,/*群聊*/
+	COMMAND_FRIENDINFO/*好友信息*/
 };
 
 /*二级结构体类型*/
@@ -19,7 +20,7 @@ enum DATATYPE
 {
 	CHAT_TEXT,/*聊天信息*/
 	CHAT_FILE,/*文件信息*/
-	USER_INFO,/*用户信息*/
+	USER_INFO,/*用户信息*/	
 	RESULT_RETURN/*结果信息*/
 };
 
@@ -63,6 +64,14 @@ struct USERINFO{
 	unsigned int userid;/*4*/
 	char password[20];/*20*/
 	char userdescription[256];/*256*/
+};
+
+/*好友信息 481*/
+struct FRIENDINFO
+{
+	unsigned char friendsize;/*1*/
+	char nickname[20][20];/*400*/
+	unsigned int userid[20];/*80*/
 };
 
 /*结果信息 513*/

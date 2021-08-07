@@ -35,6 +35,28 @@ void CMSServer::SaveUserInfoJson()
 	printf(strjson.c_str());
 }
 
+bool CMSServer::MapRomoveByValue(int value)
+{
+	int res = false;
+	for (auto iter = _mapUserOnline.begin(); iter != _mapUserOnline.end(); iter++)
+	{
+		if (iter->second == value)
+		{
+			_mapUserOnline.erase(iter->first);
+			res = true;
+			break;
+		}
+	}
+	return res;
+}
+
+bool CMSServer::MapRomoveByKey(unsigned int key)
+{
+	_mapUserOnline.erase(key);
+
+	return true;
+}
+
 std::string CMSServer::GetCurTime()
 {
 	time_t now = time(0);
@@ -52,12 +74,7 @@ void CMSServer::Update(int socket)
 	{
 	case clientrevc: printf("user---socket:%d 客户端的信息\n", socket); break;
 	case clientaccpet:printf("user---socket:%d 客户端连接\n", socket); break;
-	case clientdiscon:printf("user---socket:%d 客户端断开连接\n", socket); 
-	if (_mapUserOnline.count(socket))
-	{
-		_mapUserOnline.erase(socket);
-	}
-	break;
+	case clientdiscon:printf("user---socket:%d 客户端断开连接\n", socket); MapRomoveByValue(socket);break;
 	case servercolse:printf("user---socket:%d 服务器关闭\n", socket); break;
 	case datanodefine:printf("user---socket:%d 未定义数据\n", socket); break;
 	case serverrecv:printf("user---socket:%d 服务器消息\n", socket);RecvDataProcess(socket);break;
@@ -254,7 +271,7 @@ void CMSServer::CommandSigoutReturn(int socket, DATAPACK *datapack)
 	USERINFOALL userinfoall;
 	bool result = false;
 	std::string errorinfo = "";
-	if (!_mapUserOnline.count(socket))
+	if (!_mapUserOnline.count(userinfo.userid))
 	{
 		errorinfo = "该账户尚未登陆";
 	}
@@ -332,7 +349,7 @@ void CMSServer::CommandLoginReturn(int socket, DATAPACK *datapack)
 	USERINFOALL userinfoall;
 	bool result = false;
 	std::string errorinfo = "";
-	if (_mapUserOnline.count(socket))
+	if (_mapUserOnline.count(userinfo.userid))
 	{
 		errorinfo = "该账户已经登陆";
 	}
@@ -353,7 +370,7 @@ void CMSServer::CommandLoginReturn(int socket, DATAPACK *datapack)
 			{
 				if (stpassword == password)
 				{
-					_mapUserOnline.insert(std::pair<int, unsigned int>(socket, userid));
+					_mapUserOnline.insert(std::pair<int, unsigned int>(userid, socket));
 					/*获取并打包用户完整信息*/
 					std::string nickname, description;
 					oJson.Get("nickname", nickname);
@@ -434,9 +451,9 @@ void CMSServer::CommandLogoutReturn(int socket, DATAPACK *datapack)
 	/*校验登录信息*/
 	bool result = false;
 	std::string errorinfo = "";
-	if(_mapUserOnline.count(socket))
+	if (_mapUserOnline.count(userinfo.userid))
 	{
-		_mapUserOnline.erase(socket);
+		MapRomoveByKey(userinfo.userid);
 		result = true;
 	}
 	else
@@ -483,6 +500,7 @@ void CMSServer::CommandAddFriendReturn(int socket, DATAPACK *datapack)
 	printf("data---打招呼：%s\n", chatinfo.info);
 
 	/*校验好友信息*/
+	USERINFO userinfo;
 	bool result = false;
 	std::string errorinfo = "";
 
@@ -503,13 +521,21 @@ void CMSServer::CommandAddFriendReturn(int socket, DATAPACK *datapack)
 			if (chatinfo.useridto == userid &&
 				chatinfo.useridfrom != userid)
 			{
+				/*获取添加的好友信息*/
+				std::string nickname, description;
+				oJson.Get("nickname", nickname);
+				oJson.Get("description", description);
+				userinfo.userid = chatinfo.useridto;
+				strcpy(userinfo.nickname, nickname.c_str());
+				strcpy(userinfo.password,"");
+				strcpy(userinfo.userdescription, description.c_str());
+		
 				result = true;
 				break;
 			}
 		}
 		if (result)
 		{
-			result = false;
 			for (int i = 0; i < size; ++i)
 			{
 				neb::CJsonObject oJson;
@@ -565,6 +591,7 @@ void CMSServer::CommandAddFriendReturn(int socket, DATAPACK *datapack)
 	if (result)
 	{
 		resultinfo.result = OK;
+		memcpy(resultinfo.resultinfo, &userinfo, sizeof(USERINFO));
 
 		printf("log---添加好友成功\n");
 	}
@@ -666,4 +693,20 @@ void CMSServer::CommandDelFriendReturn(int socket, DATAPACK *datapack)
 		printf("log---删除好友申请回复发送失败\n");
 	else
 		printf("log---删除好友申请回复成功\n");
+}
+
+void CMSServer::CommandSingleChatReturn(int socket, DATAPACK *datapack)
+{
+	CHATINFO chatinfo;
+	memcpy(&chatinfo, datapack->data, sizeof(chatinfo));
+	printf("data---发送人：%d\n", chatinfo.useridfrom);
+	printf("data---接收人：%d\n", chatinfo.useridto);
+	printf("data---信息：%s\n", chatinfo.info);
+
+	bool result = false;
+	std::string errorinfo = "";
+	if (_mapUserOnline.count(chatinfo.useridto))
+	{
+		errorinfo = "好友未登录";
+	}
 }

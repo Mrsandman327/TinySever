@@ -14,7 +14,9 @@ public:
 public:
 	CMSSocket* _socket;
 	neb::CJsonObject _oJsonuserinfo;
-	std::map<int, unsigned int> _mapUserOnline;
+	std::map<unsigned int, int> _mapUserOnline;
+	bool MapRomoveByValue(int value);
+	bool MapRomoveByKey(unsigned int key);
 public:
 	std::string GetCurTime();
 	void ReadUserInfoJson();
@@ -31,5 +33,6 @@ public:
 	void CommandLogoutReturn(int socket, DATAPACK *datapack);
 	void CommandAddFriendReturn(int socket, DATAPACK *datapack);
 	void CommandDelFriendReturn(int socket, DATAPACK *datapack);
+	void CommandSingleChatReturn(int socket, DATAPACK *datapack);
 };
 
