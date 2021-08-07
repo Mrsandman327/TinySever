@@ -512,6 +512,12 @@ void CMSServer::CommandAddFriendReturn(int socket, DATAPACK *datapack)
 	bool result = false;
 	std::string errorinfo = "";
 
+	if (!_mapUserOnline.count(chatinfo.useridfrom))
+	{
+		errorinfo = "用户未登录";
+		goto LLL;
+	}
+
 	if (chatinfo.useridfrom == chatinfo.useridto)
 	{
 		errorinfo = "无法添加自己";
@@ -633,6 +639,12 @@ void CMSServer::CommandDelFriendReturn(int socket, DATAPACK *datapack)
 	bool result = false;
 	std::string errorinfo = "";
 
+	if (!_mapUserOnline.count(chatinfo.useridfrom))
+	{
+		errorinfo = "用户未登录";
+		goto LLL;
+	}
+
 	if (chatinfo.useridfrom == chatinfo.useridto)
 	{
 		errorinfo = "无法删除自己";
@@ -715,7 +727,7 @@ void CMSServer::CommandSingleChatReturn(int socket, DATAPACK *datapack)
 
 	bool result = false;
 	std::string errorinfo = "";
-	if (_mapUserOnline.count(chatinfo.useridto))
+	if (!_mapUserOnline.count(chatinfo.useridto))
 	{
 		errorinfo = "好友未登录";
 		goto LLL;
@@ -730,7 +742,7 @@ void CMSServer::CommandSingleChatReturn(int socket, DATAPACK *datapack)
 
 LLL:
 	/*打包结果*/
-	datapack->commandtype = COMMAND_DELFRIEND;
+	datapack->commandtype = COMMAND_SINGLECHAT;
 	datapack->datatype = RESULT_RETURN;
 
 	RESULTINFO  resultinfo;
@@ -789,6 +801,7 @@ void CMSServer::CommandFriendInfoReturn(int socket, DATAPACK *datapack)
 			{
 				oJson["friend"].Get(j, friendinfo.userid[j]);
 			}
+			result = true;
 			break;
 		}
 	}
@@ -813,7 +826,7 @@ void CMSServer::CommandFriendInfoReturn(int socket, DATAPACK *datapack)
 
 LLL:
 	/*打包结果*/
-	datapack->commandtype = COMMAND_DELFRIEND;
+	datapack->commandtype = COMMAND_FRIENDINFO;
 	datapack->datatype = RESULT_RETURN;
 
 	RESULTINFO  resultinfo;
