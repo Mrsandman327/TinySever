@@ -34,5 +34,6 @@ public:
 	void CommandAddFriendReturn(int socket, DATAPACK *datapack);
 	void CommandDelFriendReturn(int socket, DATAPACK *datapack);
 	void CommandSingleChatReturn(int socket, DATAPACK *datapack);
+	void CommandFriendInfoReturn(int socket, DATAPACK *datapack);
 };
 
