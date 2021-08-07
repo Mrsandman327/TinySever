@@ -23,7 +23,7 @@ void CMSServer::ReadUserInfoJson()
 	}
 	_oJsonuserinfo.Parse(strjson);
 
-	printf(_oJsonuserinfo.ToFormattedString().c_str());
+	printf("%s\n", _oJsonuserinfo.ToFormattedString().c_str());
 }
 
 void CMSServer::SaveUserInfoJson()
@@ -32,7 +32,7 @@ void CMSServer::SaveUserInfoJson()
 	std::shared_ptr<std::iostream> content = std::make_shared<std::fstream>(USERJSONFILE, std::ios::out);
 	*content << strjson;
 
-	printf(strjson.c_str());
+	printf("%s\n", strjson.c_str());
 }
 
 bool CMSServer::MapRomoveByValue(int value)
@@ -88,9 +88,9 @@ void CMSServer::RecvDataProcess(int socket)
 	char *buffer = new char[DATAPACKETSIZE];
 	if (_socket->get_recvbuf(&buffer))
 	{
-		std::function<void(int,DATAPACK*)> CommandReturn;
+		std::function<void(int,DATA_PACK*)> CommandReturn;
 
-		DATAPACK datapack;
+		DATA_PACK datapack;
 		memcpy(&datapack, buffer, sizeof(datapack));
 
 		switch (COMMANDTYPE(datapack.commandtype))
@@ -181,18 +181,44 @@ void CMSServer::RecvDataProcess(int socket)
 	delete[] buffer;
 }
 
-bool CMSServer::SendDataPackReturn(int socket, DATAPACK *datapack)
+void CMSServer::SendDataPackReturn(int socket, COMMANDTYPE type, RESULT result, void* data, int size)
+{
+	DATA_PACK datapack;
+	memset(&datapack, 0, sizeof(DATA_PACK));
+
+	RESULTINFO_RETURN  resultinfo;
+	memset(&resultinfo, 0, sizeof(RESULTINFO_RETURN));
+	resultinfo.result = result;
+	memcpy(resultinfo.resultinfo, (char*)data, size);
+
+	/*打包结果*/
+	datapack.commandtype = type;
+	datapack.datatype = RESULT_RETURN;
+	memcpy(datapack.data, &resultinfo, sizeof(RESULTINFO_RETURN));
+
+	/*发送结果*/
+	char *buff = new char[sizeof(DATA_PACK)];
+	memset(buff, 0, sizeof(DATA_PACK));
+	memcpy(buff, &datapack, sizeof(DATA_PACK));
+	if (0 != _socket->send_skt(socket, (char*)buff, sizeof(DATA_PACK)))
+	{
+		printf("log---命令%d回复失败\n", type);
+	}
+	else
+	{
+		printf("log---命令%d回复成功\n",type);
+	}
+	delete[] buff;
+}
+
+bool CMSServer::SendDataPack(int socket, DATA_PACK *datapack)
 {
 	bool result = false;
 	/*发送结果*/
-	char *buff = new char[sizeof(DATAPACK)];
-	memset(buff, 0, sizeof(DATAPACK));
-	memcpy(buff, datapack, sizeof(DATAPACK));
-	if (0 != _socket->send_skt(socket, (char*)buff, sizeof(DATAPACK)))
-	{
-		result = false;
-	}
-	else
+	char *buff = new char[sizeof(DATA_PACK)];
+	memset(buff, 0, sizeof(DATA_PACK));
+	memcpy(buff, datapack, sizeof(DATA_PACK));
+	if (0 == _socket->send_skt(socket, (char*)buff, sizeof(DATA_PACK)))
 	{
 		result = true;
 	}
@@ -201,19 +227,19 @@ bool CMSServer::SendDataPackReturn(int socket, DATAPACK *datapack)
 	return result;
 }
 
-void CMSServer::CommandSiginReturn(int socket, DATAPACK *datapack)
+void CMSServer::CommandSiginReturn(int socket, DATA_PACK *datapack)
 {
-	USERINFO userinfo;
-	memcpy(&userinfo, datapack->data, sizeof(userinfo));
-	printf("data---昵称：%s\n", userinfo.nickname);
-	printf("data---账户：%d\n", userinfo.userid);
-	printf("data---密码：%s\n", userinfo.password);
-	printf("data---签名：%s\n", userinfo.userdescription);
+	SIGIN_INFO sigininfo;
+	memcpy(&sigininfo, datapack->data, sizeof(SIGIN_INFO));
+	printf("data---昵称：%s\n", sigininfo.nickname);
+	printf("data---账户：%d\n", sigininfo.userid);
+	printf("data---密码：%s\n", sigininfo.password);
+	printf("data---签名：%s\n", sigininfo.userdescription);
 
 	/*校验注册信息*/
 	bool result = true;
 	std::string errorinfo = "";
-	if (userinfo.userid < 99999 || userinfo.userid >999999999)
+	if (sigininfo.userid < 99999 || sigininfo.userid >999999999)
 	{
 		result = false;
 		errorinfo = "账号不符合规定";
@@ -223,10 +249,10 @@ void CMSServer::CommandSiginReturn(int socket, DATAPACK *datapack)
 	/*写入注册信息*/
 	{
 		neb::CJsonObject oJson;
-		oJson.Add("nickname", userinfo.nickname);
-		oJson.Add("userid", userinfo.userid);
-		oJson.Add("password", userinfo.password);
-		oJson.Add("description", userinfo.userdescription);
+		oJson.Add("nickname", sigininfo.nickname);
+		oJson.Add("userid", sigininfo.userid);
+		oJson.Add("password", sigininfo.password);
+		oJson.Add("description", sigininfo.userdescription);
 		oJson.AddEmptySubArray("friend");
 		oJson.AddEmptySubArray("group");
 		_oJsonuserinfo["userinfo"].Add(oJson);
@@ -234,46 +260,33 @@ void CMSServer::CommandSiginReturn(int socket, DATAPACK *datapack)
 		SaveUserInfoJson();
 	}
 	
-
 LLL:
 	/*打包结果*/
-	datapack->commandtype = COMMAND_SIGIN;
-	datapack->datatype = RESULT_RETURN;
-
-	RESULTINFO  resultinfo;
-	memset(&resultinfo, 0, sizeof(RESULTINFO));
+	int datasize = 0;
+	void* data = nullptr;;
 	if (result)
 	{
-		resultinfo.result = OK;
-
+		data = nullptr;
 		printf("log---注册成功\n");
 	}
 	else
 	{
-		strcpy(resultinfo.resultinfo, errorinfo.c_str());
-		resultinfo.result = FAIL;
-
-		printf("log---注册失败失败 错误信息：%s\n", resultinfo.resultinfo);
+		data = (void*)errorinfo.c_str();
+		datasize = errorinfo.length();
+		printf("log---注册失败失败 错误信息：%s\n", data);
 	}
 
-	memcpy(datapack->data, &resultinfo, sizeof(RESULTINFO));
-
-	/*发送结果*/
-	if (!SendDataPackReturn(socket, datapack))
-		printf("log---注册申请回复发送失败\n");
-	else
-		printf("log---注册申请回复发送成功\n");
+	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
 }
 
-void CMSServer::CommandSigoutReturn(int socket, DATAPACK *datapack)
+void CMSServer::CommandSigoutReturn(int socket, DATA_PACK *datapack)
 {
-	USERINFO userinfo;
-	memcpy(&userinfo, datapack->data, sizeof(userinfo));
+	USER_INFO userinfo;
+	memcpy(&userinfo, datapack->data, sizeof(USER_INFO));
 	printf("data---账户：%d\n", userinfo.userid);
 	printf("data---密码：%s\n", userinfo.password);
 	
 	/*校验登录信息*/
-	USERINFOALL userinfoall;	
 	std::string stpassword = userinfo.password;
 	bool result = false;
 	std::string errorinfo = "";
@@ -313,47 +326,34 @@ void CMSServer::CommandSigoutReturn(int socket, DATAPACK *datapack)
 		errorinfo = "该用户尚未注册";
 	}
 	
-
 LLL:
 	/*打包结果*/
-	datapack->commandtype = COMMAND_SIGOUT;
-	datapack->datatype = RESULT_RETURN;
-
-	RESULTINFO  resultinfo;
-	memset(&resultinfo, 0, sizeof(RESULTINFO));
+	int datasize = 0;
+	void* data = nullptr;
 	if (result)
 	{
-		memcpy(resultinfo.resultinfo, &userinfoall, sizeof(USERINFOALL));
-		resultinfo.result = OK;
-
+		data = nullptr;
 		printf("log---注销成功\n");
 	}
 	else
 	{
-		strcpy(resultinfo.resultinfo, errorinfo.c_str());
-		resultinfo.result = FAIL;
-
-		printf("log---注销失败失败 错误信息：%s\n", resultinfo.resultinfo);
+		data = (void*)errorinfo.c_str();
+		datasize = errorinfo.length();
+		printf("log---注销失败 错误信息：%s\n", data);
 	}
 
-	memcpy(datapack->data, &resultinfo, sizeof(RESULTINFO));
-
-	/*发送结果*/
-	if (!SendDataPackReturn(socket, datapack))
-		printf("log---注销申请回复发送失败\n");
-	else
-		printf("log---注销申请回复发送成功\n");
+	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
 }
 
-void CMSServer::CommandLoginReturn(int socket, DATAPACK *datapack)
+void CMSServer::CommandLoginReturn(int socket, DATA_PACK *datapack)
 {
-	USERINFO userinfo;
-	memcpy(&userinfo, datapack->data, sizeof(userinfo));
+	USER_INFO userinfo;
+	memcpy(&userinfo, datapack->data, sizeof(USER_INFO));
 	printf("data---账户：%d\n", userinfo.userid);
 	printf("data---密码：%s\n", userinfo.password);
 	
 	/*校验登录信息*/	
-	USERINFOALL userinfoall;	
+	USERINFO_RETURN userinfo_return;
 	std::string stpassword = userinfo.password;
 	bool result = false;
 	std::string errorinfo = "";
@@ -378,29 +378,13 @@ void CMSServer::CommandLoginReturn(int socket, DATAPACK *datapack)
 			if (stpassword == password)
 			{
 				_mapUserOnline.insert(std::pair<unsigned int,int>(userid, socket));
-				/*获取并打包用户完整信息*/
+				/*获取并打包用户信息*/
 				std::string nickname, description;
 				oJson.Get("nickname", nickname);
 				oJson.Get("description", description);
-				strcpy(userinfoall.nickname, nickname.c_str());
-				userinfoall.userid = userinfo.userid;
-				strcpy(userinfoall.password, userinfo.password);
-				strcpy(userinfoall.userdescription, description.c_str());
-				userinfoall.friendsize = oJson["friend"].GetArraySize();
-				userinfoall.groupsize = oJson["group"].GetArraySize();
-				for (int i = 0; i < userinfoall.friendsize; ++i)
-				{
-					unsigned int friendid;
-					oJson["friend"].Get(i, friendid);
-					userinfoall.friendlist[i] = friendid;
-				}
-
-				for (int i = 0; i < userinfoall.groupsize; ++i)
-				{
-					unsigned int groupid;
-					oJson["group"].Get(i, groupid);
-					userinfoall.grouplist[i] = groupid;
-				}
+				strcpy(userinfo_return.nickname, nickname.c_str());
+				strcpy(userinfo_return.userdescription, description.c_str());
+				
 				result = true;
 				break;
 			}
@@ -415,43 +399,31 @@ void CMSServer::CommandLoginReturn(int socket, DATAPACK *datapack)
 	{
 		errorinfo = "该用户尚未注册";
 	}
-	
 
 LLL:
 	/*打包结果*/
-	datapack->commandtype = COMMAND_LOGIN;
-	datapack->datatype = RESULT_RETURN;
-
-	RESULTINFO  resultinfo;
-	memset(&resultinfo, 0, sizeof(RESULTINFO));
+	int datasize = 0;
+	void* data = nullptr;
 	if (result)
 	{
-		memcpy(resultinfo.resultinfo, &userinfoall, sizeof(USERINFOALL));
-		resultinfo.result = OK;
-
+		data = &userinfo_return;
+		datasize = sizeof(USERINFO_RETURN);
 		printf("log---登录成功\n");
 	}
 	else
 	{
-		strcpy(resultinfo.resultinfo, errorinfo.c_str());
-		resultinfo.result = FAIL;
-
-		printf("log---登录失败 错误信息：%s\n",resultinfo.resultinfo);
+		data = (void*)errorinfo.c_str();
+		datasize = errorinfo.length();
+		printf("log---登录失败 错误信息：%s\n", data);
 	}
 
-	memcpy(datapack->data, &resultinfo, sizeof(RESULTINFO));
-
-	/*发送结果*/
-	if (!SendDataPackReturn(socket, datapack))
-		printf("log---登录申请回复发送失败\n");
-	else
-		printf("log---登录申请回复发送成功\n");
+	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
 }
 
-void CMSServer::CommandLogoutReturn(int socket, DATAPACK *datapack)
+void CMSServer::CommandLogoutReturn(int socket, DATA_PACK *datapack)
 {
-	USERINFO userinfo;
-	memcpy(&userinfo, datapack->data, sizeof(userinfo));
+	USER_INFO userinfo;
+	memcpy(&userinfo, datapack->data, sizeof(USER_INFO));
 	printf("data---账户：%d\n", userinfo.userid);
 	printf("data---密码：%s\n", userinfo.password);
 
@@ -469,56 +441,41 @@ void CMSServer::CommandLogoutReturn(int socket, DATAPACK *datapack)
 		errorinfo = "该用户未登录";
 	}
 
+LLL:
 	/*打包结果*/
-	datapack->commandtype = COMMAND_LOGOUT;
-	datapack->datatype = RESULT_RETURN;
-
-	RESULTINFO  resultinfo;
-	memset(&resultinfo, 0, sizeof(RESULTINFO));
+	int datasize = 0;
+	void* data = nullptr;
 	if (result)
 	{
-		resultinfo.result = OK;
-
+		data = nullptr;
+		datasize = 0;
 		printf("log---退出登录成功\n");
 	}
 	else
 	{
-		strcpy(resultinfo.resultinfo, errorinfo.c_str());
-		resultinfo.result = FAIL;
-
-		printf("log---推出登录失败 错误信息：%s\n", resultinfo.resultinfo);
+		data = (void*)errorinfo.c_str();
+		datasize = errorinfo.length();
+		printf("log---退出登录失败 错误信息：%s\n", data);
 	}
 
-	memcpy(datapack->data, &resultinfo, sizeof(RESULTINFO));
-
-	/*发送结果*/
-	if (!SendDataPackReturn(socket, datapack))
-		printf("log---退出登录申请回复发送失败\n");
-	else
-		printf("log---退出登录申请回复发送成功\n");
+	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
 	
 }
 
-void CMSServer::CommandAddFriendReturn(int socket, DATAPACK *datapack)
+void CMSServer::CommandAddFriendReturn(int socket, DATA_PACK *datapack)
 {
-	CHATINFO chatinfo;
-	memcpy(&chatinfo, datapack->data, sizeof(chatinfo));
-	printf("data---申请人：%d\n", chatinfo.useridfrom);
-	printf("data---要添加的好友：%d\n", chatinfo.useridto);
-	printf("data---打招呼：%s\n", chatinfo.info);
+	FRIEND_INFO friend_info;
+	memcpy(&friend_info, datapack->data, sizeof(FRIEND_INFO));
+	printf("data---申请人：%d\n", friend_info.userid);
+	printf("data---要添加的好友：%d\n", friend_info.friendid);
+	printf("data---打招呼：%s\n", friend_info.info);
 
 	/*校验好友信息*/
-	USERINFO userinfo;
+	FRIENDINFO_RETURN friendinfo;
 	bool result = false;
 	std::string errorinfo = "";
 
-	if (!_mapUserOnline.count(chatinfo.useridfrom))
-	{
-		errorinfo = "用户未登录";
-		goto LLL;
-	}
-
-	if (chatinfo.useridfrom == chatinfo.useridto)
+	if (friend_info.userid == friend_info.friendid)
 	{
 		errorinfo = "无法添加自己";
 		goto LLL;
@@ -532,17 +489,14 @@ void CMSServer::CommandAddFriendReturn(int socket, DATAPACK *datapack)
 		_oJsonuserinfo["userinfo"].Get(i, oJson);
 		unsigned int userid;
 		oJson.Get("userid", userid);
-		if (chatinfo.useridto == userid &&
-			chatinfo.useridfrom != userid)
+		if (friend_info.friendid == userid)
 		{
 			/*获取添加的好友信息*/
 			std::string nickname, description;
 			oJson.Get("nickname", nickname);
 			oJson.Get("description", description);
-			userinfo.userid = chatinfo.useridto;
-			strcpy(userinfo.nickname, nickname.c_str());
-			strcpy(userinfo.password, "");
-			strcpy(userinfo.userdescription, description.c_str());
+			strcpy(friendinfo.nickname, nickname.c_str());
+			strcpy(friendinfo.userdescription, description.c_str());
 
 			result = true;
 			break;
@@ -561,7 +515,7 @@ void CMSServer::CommandAddFriendReturn(int socket, DATAPACK *datapack)
 		_oJsonuserinfo["userinfo"].Get(i, oJson);
 		unsigned int userid;
 		oJson.Get("userid", userid);
-		if (chatinfo.useridfrom == userid)
+		if (friend_info.userid == userid)
 		{
 			/*检查好友是否已经存在*/
 			int sz = oJson["friend"].GetArraySize();
@@ -569,7 +523,7 @@ void CMSServer::CommandAddFriendReturn(int socket, DATAPACK *datapack)
 			{
 				unsigned int friendid;
 				oJson["friend"].Get(j, friendid);
-				if (chatinfo.useridto == friendid)
+				if (friend_info.friendid == friendid)
 				{
 					result = false;
 					break;
@@ -577,7 +531,7 @@ void CMSServer::CommandAddFriendReturn(int socket, DATAPACK *datapack)
 			}
 			if (result)
 			{
-				oJson["friend"].Add(chatinfo.useridto);
+				oJson["friend"].Add(friend_info.friendid);
 				_oJsonuserinfo["userinfo"].Replace(i, oJson);
 				SaveUserInfoJson();
 				result = true;
@@ -594,58 +548,46 @@ void CMSServer::CommandAddFriendReturn(int socket, DATAPACK *datapack)
 	{
 		errorinfo = "当前用户未注册";
 	}
-	
 
 LLL:
 	/*打包结果*/
-	datapack->commandtype = COMMAND_ADDFRIEND;
-	datapack->datatype = RESULT_RETURN;
-
-	RESULTINFO  resultinfo;
-	memset(&resultinfo, 0, sizeof(RESULTINFO));
+	int datasize = 0;
+	void* data = nullptr;
 	if (result)
 	{
-		resultinfo.result = OK;
-		memcpy(resultinfo.resultinfo, &userinfo, sizeof(USERINFO));
-
-		printf("log---添加好友成功\n");
+		data = &friendinfo;
+		datasize = sizeof(FRIENDINFO_RETURN);
+		printf("log---登录成功\n");
 	}
 	else
 	{
-		strcpy(resultinfo.resultinfo, errorinfo.c_str());
-		resultinfo.result = FAIL;
-
-		printf("log---添加好友失败 错误信息：%s\n", resultinfo.resultinfo);
+		data = (void*)errorinfo.c_str();
+		datasize = errorinfo.length();
+		printf("log---登录失败 错误信息：%s\n", data);
 	}
 
-	memcpy(datapack->data, &resultinfo, sizeof(RESULTINFO));
-
-	/*发送结果*/
-	if (!SendDataPackReturn(socket, datapack))
-		printf("log---添加好友申请回复发送失败\n");
-	else
-		printf("log---添加好友申请回复发送成功\n");
+	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
 }
 
-void CMSServer::CommandDelFriendReturn(int socket, DATAPACK *datapack)
+void CMSServer::CommandDelFriendReturn(int socket, DATA_PACK *datapack)
 {
-	CHATINFO chatinfo;
-	memcpy(&chatinfo, datapack->data, sizeof(chatinfo));
-	printf("data---申请人：%d\n", chatinfo.useridfrom);
-	printf("data---要添加的好友：%d\n", chatinfo.useridto);
-	printf("data---寄语：%s\n", chatinfo.info);
+	FRIEND_INFO friendinfo;
+	memcpy(&friendinfo, datapack->data, sizeof(FRIEND_INFO));
+	printf("data---申请人：%d\n", friendinfo.userid);
+	printf("data---要添加的好友：%d\n", friendinfo.friendid);
+	printf("data---寄语：%s\n", friendinfo.info);
 
 	/*校验好友信息*/
 	bool result = false;
 	std::string errorinfo = "";
 
-	if (!_mapUserOnline.count(chatinfo.useridfrom))
+	if (!_mapUserOnline.count(friendinfo.userid))
 	{
 		errorinfo = "用户未登录";
 		goto LLL;
 	}
 
-	if (chatinfo.useridfrom == chatinfo.useridto)
+	if (friendinfo.userid == friendinfo.friendid)
 	{
 		errorinfo = "无法删除自己";
 		goto LLL;
@@ -658,14 +600,14 @@ void CMSServer::CommandDelFriendReturn(int socket, DATAPACK *datapack)
 		_oJsonuserinfo["userinfo"].Get(i, oJson);
 		unsigned int userid;
 		oJson.Get("userid", userid);
-		if (chatinfo.useridfrom == userid)
+		if (friendinfo.userid == userid)
 		{
 			int sz = oJson["friend"].GetArraySize();
 			for (size_t j = 0; j < sz; j++)
 			{
 				unsigned int friendid;
 				oJson["friend"].Get(j, friendid);
-				if (chatinfo.useridto == friendid)
+				if (friendinfo.friendid == friendid)
 				{
 					oJson["friend"].Delete(j);
 					_oJsonuserinfo["userinfo"].Replace(i, oJson);
@@ -685,39 +627,28 @@ void CMSServer::CommandDelFriendReturn(int socket, DATAPACK *datapack)
 	{
 		errorinfo = "当前用户尚未注册";
 	}
-	
 
 LLL:
 	/*打包结果*/
-	datapack->commandtype = COMMAND_DELFRIEND;
-	datapack->datatype = RESULT_RETURN;
-
-	RESULTINFO  resultinfo;
-	memset(&resultinfo, 0, sizeof(RESULTINFO));
+	int datasize = 0;
+	void* data = nullptr;
 	if (result)
 	{
-		resultinfo.result = OK;
-
+		data = nullptr;
+		datasize = 0;
 		printf("log---删除好友成功\n");
 	}
 	else
 	{
-		strcpy(resultinfo.resultinfo, errorinfo.c_str());
-		resultinfo.result = FAIL;
-
-		printf("log---删除好友失败 错误信息：%s\n", resultinfo.resultinfo);
+		data = (void*)errorinfo.c_str();
+		datasize = errorinfo.length();
+		printf("log---删除好友失败 错误信息：%s\n", data);
 	}
 
-	memcpy(datapack->data, &resultinfo, sizeof(RESULTINFO));
-
-	/*发送结果*/
-	if (!SendDataPackReturn(socket, datapack))
-		printf("log---删除好友申请回复发送失败\n");
-	else
-		printf("log---删除好友申请回复发送成功\n");
+	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
 }
 
-void CMSServer::CommandSingleChatReturn(int socket, DATAPACK *datapack)
+void CMSServer::CommandSingleChatReturn(int socket, DATA_PACK *datapack)
 {
 	CHATINFO chatinfo;
 	memcpy(&chatinfo, datapack->data, sizeof(chatinfo));
@@ -735,45 +666,35 @@ void CMSServer::CommandSingleChatReturn(int socket, DATAPACK *datapack)
 
 	int sock =  _mapUserOnline[chatinfo.useridto];
 
-	if (!SendDataPackReturn(sock, datapack))
+	if (!SendDataPack(sock, datapack))
 		errorinfo = "信息发送失败";
 	else
 		result = true;
 
 LLL:
 	/*打包结果*/
-	datapack->commandtype = COMMAND_SINGLECHAT;
-	datapack->datatype = RESULT_RETURN;
-
-	RESULTINFO  resultinfo;
-	memset(&resultinfo, 0, sizeof(RESULTINFO));
+	int datasize = 0;
+	void* data = nullptr;
 	if (result)
 	{
-		resultinfo.result = OK;
-
+		data = nullptr;
+		datasize = 0;
 		printf("log---发送聊天信息成功\n");
 	}
 	else
 	{
-		strcpy(resultinfo.resultinfo, errorinfo.c_str());
-		resultinfo.result = FAIL;
-
-		printf("log---发送聊天信息失败 错误信息：%s\n", resultinfo.resultinfo);
+		data = (void*)errorinfo.c_str();
+		datasize = errorinfo.length();
+		printf("log---发送聊天信息失败 错误信息：%s\n", data);
 	}
 
-	memcpy(datapack->data, &resultinfo, sizeof(RESULTINFO));
-
-	/*发送结果*/
-	if (!SendDataPackReturn(socket, datapack))
-		printf("log---单聊申请回复发送失败\n");
-	else
-		printf("log---单聊申请回复发送成功\n");
+	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
 }
 
-void CMSServer::CommandFriendInfoReturn(int socket, DATAPACK *datapack)
+void CMSServer::CommandFriendInfoReturn(int socket, DATA_PACK *datapack)
 {
-	USERINFO userinfo;
-	memcpy(&userinfo, datapack->data, sizeof(userinfo));
+	USER_INFO userinfo;
+	memcpy(&userinfo, datapack->data, sizeof(USER_INFO));
 	printf("data---账户：%d\n", userinfo.userid);
 	printf("data---密码：%s\n", userinfo.password);
 
@@ -785,7 +706,7 @@ void CMSServer::CommandFriendInfoReturn(int socket, DATAPACK *datapack)
 		goto LLL;
 	}
 
-	FRIENDINFO friendinfo;
+	ALLRIENDINFO_RETURN friendinfo;
 	int size = _oJsonuserinfo["userinfo"].GetArraySize();
 	for (int i = 0; i < size; ++i)
 	{
@@ -799,7 +720,7 @@ void CMSServer::CommandFriendInfoReturn(int socket, DATAPACK *datapack)
 			friendinfo.friendsize = oJson["friend"].GetArraySize();
 			for (size_t j = 0; j < friendinfo.friendsize; j++)
 			{
-				oJson["friend"].Get(j, friendinfo.userid[j]);
+				oJson["friend"].Get(j, friendinfo.friendid[j]);
 			}
 			result = true;
 			break;
@@ -814,43 +735,33 @@ void CMSServer::CommandFriendInfoReturn(int socket, DATAPACK *datapack)
 		oJson.Get("userid", userid);
 		for (size_t j = 0; j < friendinfo.friendsize; j++)
 		{
-			if (userid == friendinfo.userid[j])
+			if (userid == friendinfo.friendid[j])
 			{
-				std::string nickname;
+				std::string nickname, description;
 				oJson.Get("nickname", nickname);
+				oJson.Get("description", description);
 				strcpy(friendinfo.nickname[j], nickname.c_str());
+				strcpy(friendinfo.userdescription[j], description.c_str());
 			}
 		}
 	}
 
-
 LLL:
 	/*打包结果*/
-	datapack->commandtype = COMMAND_FRIENDINFO;
-	datapack->datatype = RESULT_RETURN;
-
-	RESULTINFO  resultinfo;
-	memset(&resultinfo, 0, sizeof(RESULTINFO));
+	int datasize = 0;
+	void* data = nullptr;
 	if (result)
 	{
-		resultinfo.result = OK;
-		memcpy(resultinfo.resultinfo, &friendinfo, sizeof(FRIENDINFO));
-
-		printf("log---获取好友信息成功\n");
+		data = &friendinfo;
+		datasize = sizeof(ALLRIENDINFO_RETURN);
+		printf("log---获取好友成功\n");
 	}
 	else
 	{
-		strcpy(resultinfo.resultinfo, errorinfo.c_str());
-		resultinfo.result = FAIL;
-
-		printf("log---获取好友信息失败 错误信息：%s\n", resultinfo.resultinfo);
+		data = (void*)errorinfo.c_str();
+		datasize = errorinfo.length();
+		printf("log---获取好友失败 错误信息：%s\n", data);
 	}
 
-	memcpy(datapack->data, &resultinfo, sizeof(RESULTINFO));
-
-	/*发送结果*/
-	if (!SendDataPackReturn(socket, datapack))
-		printf("log---获取好友信息申请回复发送失败\n");
-	else
-		printf("log---获取好友信息申请回复发送成功\n");
+	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
 }

@@ -26,14 +26,15 @@ public:
 public:
 	void RecvDataProcess(int socket);
 	/*COMMAND RETURN*/
-	bool SendDataPackReturn(int socket, DATAPACK *datapack);
-	void CommandSiginReturn(int socket, DATAPACK *datapack);
-	void CommandSigoutReturn(int socket, DATAPACK *datapack);
-	void CommandLoginReturn(int socket, DATAPACK *datapack);
-	void CommandLogoutReturn(int socket, DATAPACK *datapack);
-	void CommandAddFriendReturn(int socket, DATAPACK *datapack);
-	void CommandDelFriendReturn(int socket, DATAPACK *datapack);
-	void CommandSingleChatReturn(int socket, DATAPACK *datapack);
-	void CommandFriendInfoReturn(int socket, DATAPACK *datapack);
+	void CommandSiginReturn(int socket, DATA_PACK *datapack);
+	void CommandSigoutReturn(int socket, DATA_PACK *datapack);
+	void CommandLoginReturn(int socket, DATA_PACK *datapack);
+	void CommandLogoutReturn(int socket, DATA_PACK *datapack);
+	void CommandAddFriendReturn(int socket, DATA_PACK *datapack);
+	void CommandDelFriendReturn(int socket, DATA_PACK *datapack);
+	void CommandSingleChatReturn(int socket, DATA_PACK *datapack);
+	void CommandFriendInfoReturn(int socket, DATA_PACK *datapack);
+	bool SendDataPack(int socket, DATA_PACK *datapack);
+	void SendDataPackReturn(int socket, COMMANDTYPE type, RESULT result, void* data, int size);
 };
 
