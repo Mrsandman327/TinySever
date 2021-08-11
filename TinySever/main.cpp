@@ -36,35 +36,17 @@ int main(int argc, char *argv[])
 	/*创建服务器*/
 	int s = socket->sever_create(argv[1], atoi(argv[2]));
 
-	/*延时*/
-	std::chrono::milliseconds dura(8000);
-	std::this_thread::sleep_for(dura);
-
-	///*发送测试*/
-	//std::string str = "测试";1
-	//TransInfo transinfo;1
-	//transinfo.datalength = str.length();1
-	//strcpy(transinfo.filedata, str.c_str());
-	//char *buff = new char[sizeof(transinfo)];
-	//memset(buff, 0, sizeof(transinfo));
-	//memcpy(buff, &transinfo, sizeof(transinfo));
-	//if (0 != socket->send_skt(socket->_clientsocklist[0], (char*)buff, sizeof(transinfo)))
-	//{
-	//	printf("发送失败");
-	//}
-	//delete[] buff;
-
-	
-	/*printf("client size:%d\n", (int)socket->getclientsocksize());
-
+	/*退出*/
+	while (true)
+	{
+		char s[100];
+		scanf("%s", s);
+		if (strcmp(s, "exit") == 0)
+			break;
+	}
+	printf("退出");
 	socket->severclose(s);
-
-
-	printf("client size:%d\n", (int)socket->getclientsocksize());
-
-	socket->clear_observable();*/
-	
-	getchar();
+	socket->clear_observable();
 #endif
 
 	return 0;

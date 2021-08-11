@@ -222,6 +222,8 @@ bool CMSSocket::listen_skt(int s, std::string addr, int port)
 
 	std::thread thread(&CMSSocket::accpet_skt, this, s);
 	thread.detach();
+
+	return true;
 }
 
 void CMSSocket::accpet_skt(int s)

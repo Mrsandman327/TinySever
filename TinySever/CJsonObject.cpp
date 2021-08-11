@@ -759,7 +759,7 @@ bool CJsonObject::Get(const std::string& strKey, bool& bValue) const
     {
         return(false);
     }
-    bValue = pJsonStruct->type;
+    bValue = pJsonStruct->type != 0 ? true : false;
     return(true);
 }
 
@@ -2001,7 +2001,7 @@ bool CJsonObject::Get(int iWhich, bool& bValue) const
     {
         return(false);
     }
-    bValue = pJsonStruct->type;
+	bValue = pJsonStruct->type != 0 ? true : false;;
     return(true);
 }
 

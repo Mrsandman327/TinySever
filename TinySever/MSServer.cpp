@@ -122,55 +122,12 @@ void CMSServer::SaveUserInfoJson()
 
 bool CMSServer::MapRomoveByValue(int value)
 {
-	int res = false;
+	bool res = false;
 	for (auto iter = _mapUserOnline.begin(); iter != _mapUserOnline.end(); iter++)
 	{
 		if (iter->second == value)
 		{
-			DATA_PACK datapack;
-			memset(&datapack, 0, sizeof(DATA_PACK));
-			/*打包结果*/
-			datapack.commandtype = COMMAND_LOGOUT;
-			datapack.datatype = NOTIFY_INFO;
-
-			/*通知好友自己下线信息*/
-			int size = _oJsonuserinfo["userinfo"].GetArraySize();
-			for (int i = 0; i < size; ++i)
-			{
-				neb::CJsonObject oJson;
-				_oJsonuserinfo["userinfo"].Get(i, oJson);
-				unsigned int userid;
-				std::string password;
-				oJson.Get("userid", userid);
-				oJson.Get("password", password);
-
-				if (iter->first == userid)
-				{
-					/*打包自己的信息*/
-					FRIENDINFO_RETURN friendinfo;
-					std::string nickname, description;
-					oJson.Get("nickname", nickname);
-					oJson.Get("description", description);
-					friendinfo.friendid = userid;
-					strcpy(friendinfo.nickname, nickname.c_str());
-					strcpy(friendinfo.userdescription, description.c_str());
-					memcpy(datapack.data, &friendinfo, sizeof(RESULTINFO_RETURN));
-
-					/*发送给好友*/
-					int sz = oJson["friend"].GetArraySize();
-					for (size_t j = 0; j < sz; j++)
-					{
-						unsigned int friendid;
-						oJson["friend"].Get(j, friendid);
-
-						if (_mapUserOnline.count(friendid))
-						{	
-							SendDataPack(_mapUserOnline[friendid], &datapack);
-						}
-					}
-				}
-			}
-
+			LoginStateNotify(COMMAND_LOGOUT, iter->first);
 			_mapUserOnline.erase(iter->first);
 			res = true;
 			break;
@@ -181,7 +138,16 @@ bool CMSServer::MapRomoveByValue(int value)
 
 bool CMSServer::MapRomoveByKey(unsigned int key)
 {
+	LoginStateNotify(COMMAND_LOGOUT, key);
 	_mapUserOnline.erase(key);
+
+	return true;
+}
+
+bool CMSServer::MapInsertData(unsigned int key, int value)
+{
+	_mapUserOnline.insert(std::pair<unsigned int, int>(key, value));
+	LoginStateNotify(COMMAND_LOGIN, key);
 
 	return true;
 }
@@ -518,33 +484,14 @@ void CMSServer::CommandLoginReturn(int socket, DATA_PACK *datapack)
 		{
 			if (stpassword == password)
 			{
-				_mapUserOnline.insert(std::pair<unsigned int,int>(userid, socket));
 				/*获取并打包用户信息*/
 				std::string nickname, description;
 				oJson.Get("nickname", nickname);
 				oJson.Get("description", description);
 				strcpy(userinfo_return.nickname, nickname.c_str());
 				strcpy(userinfo_return.userdescription, description.c_str());
-				/*通知好友自己上线信息*/
-				FRIENDINFO_RETURN friendinfo;
-				friendinfo.friendid = userid;
-				strcpy(friendinfo.nickname, nickname.c_str());
-				strcpy(friendinfo.userdescription, description.c_str());
-				memcpy(datapack->data, &friendinfo, sizeof(RESULTINFO_RETURN));
 
-				int sz = oJson["friend"].GetArraySize();
-				for (size_t j = 0; j < sz; j++)
-				{
-					unsigned int friendid;
-					oJson["friend"].Get(j, friendid);
-
-					if (_mapUserOnline.count(friendid))
-					{
-						datapack->datatype = NOTIFY_INFO;
-						SendDataPack(_mapUserOnline[friendid], datapack);
-					}
-				}
-
+				MapInsertData(userid, socket);
 				result = true;
 				break;
 			}
@@ -597,49 +544,7 @@ void CMSServer::CommandLogoutReturn(int socket, DATA_PACK *datapack)
 	else
 	{
 		errorinfo = "该用户未登录";
-	}
-
-	/*通知好友自己下线信息*/
-	std::string stpassword = userinfo.password;
-	int size = _oJsonuserinfo["userinfo"].GetArraySize();
-	for (int i = 0; i < size; ++i)
-	{
-		neb::CJsonObject oJson;
-		_oJsonuserinfo["userinfo"].Get(i, oJson);
-		unsigned int userid;
-		std::string password;
-		oJson.Get("userid", userid);
-		oJson.Get("password", password);
-
-		if (userinfo.userid == userid)
-		{
-			if (stpassword == password)
-			{
-				/*打包自己的信息*/
-				FRIENDINFO_RETURN friendinfo;
-				std::string nickname, description;
-				oJson.Get("nickname", nickname);
-				oJson.Get("description", description);
-				friendinfo.friendid = userid;
-				strcpy(friendinfo.nickname, nickname.c_str());
-				strcpy(friendinfo.userdescription, description.c_str());
-				memcpy(datapack->data, &friendinfo, sizeof(RESULTINFO_RETURN));
-
-				/*发送给好友*/
-				int sz = oJson["friend"].GetArraySize();
-				for (size_t j = 0; j < sz; j++)
-				{
-					unsigned int friendid;
-					oJson["friend"].Get(j, friendid);
-
-					if (_mapUserOnline.count(friendid))
-					{
-						datapack->datatype = NOTIFY_INFO;
-						SendDataPack(_mapUserOnline[friendid], datapack);
-					}
-				}
-			}
-		}
+		goto LLL;
 	}
 
 LLL:
@@ -721,7 +626,7 @@ void CMSServer::CommandAddFriendReturn(int socket, DATA_PACK *datapack)
 		{
 			/*检查好友是否已经存在*/
 			int sz = oJson["friend"].GetArraySize();
-			for (size_t j = 0; j < sz; j++)
+			for (int j = 0; j < sz; j++)
 			{
 				unsigned int friendid;
 				oJson["friend"].Get(j, friendid);
@@ -813,7 +718,7 @@ void CMSServer::CommandDelFriendReturn(int socket, DATA_PACK *datapack)
 		if (friendinfo.userid == userid)
 		{
 			int sz = oJson["friend"].GetArraySize();
-			for (size_t j = 0; j < sz; j++)
+			for (int j = 0; j < sz; j++)
 			{
 				unsigned int friendid;
 				oJson["friend"].Get(j, friendid);
@@ -904,7 +809,7 @@ void CMSServer::CommandSingleChatReturn(int socket, DATA_PACK *datapack)
 		if (friendid == userid)
 		{
 			int sz = oJson["friend"].GetArraySize();
-			for (size_t j = 0; j < sz; j++)
+			for (int j = 0; j < sz; j++)
 			{
 				unsigned int friendid;
 				oJson["friend"].Get(j, friendid);
@@ -925,19 +830,19 @@ void CMSServer::CommandSingleChatReturn(int socket, DATA_PACK *datapack)
 	if (!friendexit)
 	{
 		errorinfo = "对方已经注销账号";
+		goto LLL;
 	}
 
 	if (!_mapUserOnline.count(friendid))
 	{
 		errorinfo = "好友未登录,信息将缓存，在好友上线后发送";
 
-		void *data = datapack->data;
 		int datasize = 0;
 		if (datapack->datatype == CHAT_TEXT)
 			datasize = sizeof(OSSFILEINFO);
 		else if (datapack->datatype == CHAT_FILE)
 			datasize = sizeof(CHATINFO);
-		SaveCacheInfo((SEVERDATATYPE)datapack->datatype, data, datasize);
+		SaveCacheInfo((void*)datapack->data, datasize);
 
 		goto LLL;
 	}
@@ -1054,12 +959,15 @@ LLL:
 	}
 }
 
-void CMSServer::SaveCacheInfo(SEVERDATATYPE type, void* data, int size)
+void CMSServer::SaveCacheInfo(void* data, int size)
 {
 	unsigned int userid, friendid;
 	std::string info, bucket, object;
-	if (type == CHAT_TEXT)
+	int type = CHAT_TEXT;
+
+	if (size == sizeof(CHATINFO))
 	{ 
+		type = CHAT_TEXT;
 		CHATINFO chatinfo;
 		memset(&chatinfo, 0, sizeof(CHATINFO));
 		memcpy(&chatinfo, (char*)data, sizeof(chatinfo));
@@ -1067,8 +975,9 @@ void CMSServer::SaveCacheInfo(SEVERDATATYPE type, void* data, int size)
 		friendid = chatinfo.useridto;
 		info = chatinfo.info;
 	}
-	else if (type == CHAT_FILE)
+	else if (size == sizeof(OSSFILEINFO))
 	{
+		type = CHAT_FILE;
 		OSSFILEINFO fileinfo;
 		memset(&fileinfo, 0, sizeof(OSSFILEINFO));
 		memcpy(&fileinfo, (char*)data, sizeof(fileinfo));
@@ -1247,4 +1156,52 @@ void CMSServer::SenCacheInfo(unsigned int userid)
 		}
 	}
 	remove(cachefile);
+}
+
+void CMSServer::LoginStateNotify(int state,unsigned int userid)
+{
+	DATA_PACK datapack;
+	memset(&datapack, 0, sizeof(DATA_PACK));
+	/*打包结果*/
+	datapack.commandtype = COMMANDTYPE(state);
+	datapack.datatype = NOTIFY_INFO;
+
+	/*通知好友自己下线信息*/
+	int size = _oJsonuserinfo["userinfo"].GetArraySize();
+	for (int i = 0; i < size; ++i)
+	{
+		neb::CJsonObject oJson;
+		_oJsonuserinfo["userinfo"].Get(i, oJson);
+		unsigned int nuserid;
+		std::string password;
+		oJson.Get("userid", nuserid);
+		oJson.Get("password", password);
+
+		if (userid == nuserid)
+		{
+			/*打包自己的信息*/
+			FRIENDINFO_RETURN friendinfo;
+			std::string nickname, description;
+			oJson.Get("nickname", nickname);
+			oJson.Get("description", description);
+			friendinfo.friendid = userid;
+			strcpy(friendinfo.nickname, nickname.c_str());
+			strcpy(friendinfo.userdescription, description.c_str());
+			memcpy(datapack.data, &friendinfo, sizeof(RESULTINFO_RETURN));
+
+			/*发送给好友*/
+			int sz = oJson["friend"].GetArraySize();
+			for (int j = 0; j < sz; j++)
+			{
+				unsigned int friendid;
+				oJson["friend"].Get(j, friendid);
+
+				if (_mapUserOnline.count(friendid))
+				{
+					SendDataPack(_mapUserOnline[friendid], &datapack);
+				}
+			}
+			break;
+		}
+	}
 }

@@ -11,21 +11,30 @@ public:
 	CMSServer(CMSSocket *sub);
 	~CMSServer();	
 public:
+	std::string GetCurTime();
+	void Prtinf(unsigned short cr, const char *_format, ...);
+public:
+	/*server socket*/
 	CMSSocket* _socket;
+	/*server notify*/
+	void Update(int socket) override;
+	/*online user*/
 	neb::CJsonObject _oJsonuserinfo;
 	std::map<unsigned int, int> _mapUserOnline;
 	bool MapRomoveByValue(int value);
 	bool MapRomoveByKey(unsigned int key);
-public:
-	std::string GetCurTime();
+	bool MapInsertData(unsigned int key, int value);
+	/*userinfo*/
 	void ReadUserInfoJson();
 	void SaveUserInfoJson();
-	void Prtinf(unsigned short cr, const char *_format, ...);
-public:
-	void Update(int socket) override;
-public:
+	/*cache data*/
+	void SenCacheInfo(unsigned int userid);
+	void SaveCacheInfo(void* data, int size);
+	/*client notify*/
+	void LoginStateNotify(int state, unsigned int userid);
+	void ServerStateBotify(int state);
 	void RecvDataProcess(int socket);
-	/*COMMAND RETURN*/
+	/*command return*/
 	void CommandSiginReturn(int socket, DATA_PACK *datapack);
 	void CommandSigoutReturn(int socket, DATA_PACK *datapack);
 	void CommandLoginReturn(int socket, DATA_PACK *datapack);
@@ -36,8 +45,6 @@ public:
 	void CommandFriendInfoReturn(int socket, DATA_PACK *datapack);
 	bool SendDataPack(int socket, DATA_PACK *datapack);
 	void SendDataPackReturn(int socket, COMMANDTYPE type, RESULT result, void* data, int size);
-	/**/
-	void SenCacheInfo(unsigned int userid);
-	void SaveCacheInfo(SEVERDATATYPE type, void* data, int size);
+
 };
 
