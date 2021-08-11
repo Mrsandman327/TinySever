@@ -20,6 +20,7 @@ enum SEVERDATATYPE
 {
 	CHAT_TEXT,/*聊天信息*/
 	CHAT_FILE,/*文件信息*/
+	NOTIFY_INFO,/*通知信息*/
 	RESULT_RETURN/*服务器返回结果信息*/
 };
 
@@ -70,17 +71,19 @@ struct USERINFO_RETURN
 	char userdescription[64];/*64*/
 };
 
-/*好友信息 84*/
+/*好友信息 88*/
 struct FRIENDINFO_RETURN
 {
+	unsigned int friendid;/*4*/
 	char nickname[20];/*20*/
 	char userdescription[64];/*64*/
 };
 
-/*全部好友信息 881*/
+/*全部好友信息 882*/
 struct ALLRIENDINFO_RETURN
 {
-	unsigned char friendsize; /*1*/
+	unsigned short friendsize:6;/*2*/
+	unsigned short isonline:10; 
 	unsigned int friendid[10];/*40*/
 	char nickname[10][20];/*200*/
 	char userdescription[10][64];/*640*/

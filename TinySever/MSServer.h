@@ -3,7 +3,6 @@
 #include "DataStruct.h"
 #include "CJsonObject.hpp"
 #include <map>
-#define USERJSONFILE "D:\\GIT\\\TinySever\\\Debug\\userinfo.json"
 
 class CMSServer :
 	public CSocketObservable
@@ -21,6 +20,7 @@ public:
 	std::string GetCurTime();
 	void ReadUserInfoJson();
 	void SaveUserInfoJson();
+	void Prtinf(unsigned short cr, const char *_format, ...);
 public:
 	void Update(int socket) override;
 public:
@@ -36,5 +36,8 @@ public:
 	void CommandFriendInfoReturn(int socket, DATA_PACK *datapack);
 	bool SendDataPack(int socket, DATA_PACK *datapack);
 	void SendDataPackReturn(int socket, COMMANDTYPE type, RESULT result, void* data, int size);
+	/**/
+	void SenCacheInfo(unsigned int userid);
+	void SaveCacheInfo(SEVERDATATYPE type, void* data, int size);
 };
 

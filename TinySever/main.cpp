@@ -1,6 +1,13 @@
 #include <stdio.h>
 #include "MSServer.h"
 #include <chrono>
+#include <io.h>
+
+#ifdef __linux__
+#include<unistd.h>
+#elif  defined(_WIN32)
+#include<direct.h>
+#endif
 
 int main(int argc, char *argv[])
 {
