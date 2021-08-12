@@ -1,16 +1,25 @@
-#include <stdio.h>
 #include "MSServer.h"
+#include <stdio.h>
 #include <chrono>
-#include <io.h>
+#include <string.h>
 
 #ifdef __linux__
-#include<unistd.h>
+#include <sys/io.h>
+#include <unistd.h>
 #elif  defined(_WIN32)
-#include<direct.h>
+#include <io.h>
+#include <direct.h>
+#include <windows.h>
 #endif
 
 int main(int argc, char *argv[])
 {
+	if (argc != 3)
+	{
+		printf("arg %d error!\n", argc);
+		return 0;
+	}
+
 	printf("argv1:IP Adress: %s\n", argv[1]);
 	printf("argv2:Port: %s\n", argv[2]);
 
@@ -34,7 +43,7 @@ int main(int argc, char *argv[])
 	getchar();
 #else
 	/*创建服务器*/
-	int s = socket->sever_create(argv[1], atoi(argv[2]));
+	int sockfd = socket->sever_create(argv[1], atoi(argv[2]));
 
 	/*退出*/
 	while (true)
@@ -44,8 +53,7 @@ int main(int argc, char *argv[])
 		if (strcmp(s, "exit") == 0)
 			break;
 	}
-	printf("退出");
-	socket->severclose(s);
+	socket->severclose(sockfd);
 	socket->clear_observable();
 #endif
 

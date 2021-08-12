@@ -1,22 +1,32 @@
 #include "MSSocket.h"
 #include <stdio.h>
-
+#include <string.h>
 
 #ifdef __linux__
 #include <arpa/inet.h>
 #include<netinet/in.h>
 #include<sys/socket.h>
 #include<sys/types.h>
-#endif
-#ifdef _WIN32
+#include <unistd.h> //close()
+#include <netdb.h> //gethostbyname
+
+#define INVALID_SOCKET  (unsigned int)(~0)
+#define SOCKET_ERROR				  (-1)
+#define closesocket close
+#define SD_RECEIVE 	SHUT_RD
+#define SD_SEND 	SHUT_WD
+#define SD_BOTH 	SHUT_RDWR
+#define WOULDBLOCK  EWOULDBLOCK
+
+#elif  defined(_WIN32)
 #include <winsock2.h>  
 #pragma comment(lib,"ws2_32.lib") 
+#define WOULDBLOCK  WSAEWOULDBLOCK
 #endif
 
 CMSSocket::CMSSocket()
 {
 }
-
 
 CMSSocket::~CMSSocket()
 {
@@ -66,23 +76,35 @@ void CMSSocket::delclientsock(int s)
 	}
 }
 
+int CMSSocket::geterror_skt()
+{
+#ifdef __linux__
+	return errno;
+#elif  defined(_WIN32)
+	return WSAGetLastError();
+#endif
+
+}
+
 int CMSSocket::init_skt()
 {
-	WORD sockVersion = MAKEWORD(2, 2);
+#ifdef _WIN32
+	unsigned short sockVersion = MAKEWORD(2, 2);
 	WSADATA wsaData;
 	if ((WSAStartup(WS_VERSION_CHOICE1, &wsaData) != 0) &&
 		((WSAStartup(WS_VERSION_CHOICE2, &wsaData)) != 0))
 	{
-		printf("socket---WSAStartup error，code：%d\n", WSAGetLastError());
+		printf("socket---WSAStartup error，code：%d\n", geterror_skt());
 		return -1;
 	}
 	if ((wsaData.wVersion != WS_VERSION_CHOICE1) &&
 		(wsaData.wVersion != WS_VERSION_CHOICE2))
 	{
-		printf("socket---WSAStartup error，code：%d\n", WSAGetLastError());
+		printf("socket---WSAStartup error，code：%d\n", geterror_skt());
 		WSACleanup();
 		return -1;
 	}
+#endif
 	return 0;
 }
 
@@ -90,7 +112,7 @@ int CMSSocket::make_skt()
 {
 	int s = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 	if (s == INVALID_SOCKET) {
-		printf("socket---socket error，code：%d\n", WSAGetLastError());
+		printf("socket---socket error，code：%d\n", geterror_skt());
 		return SOCKET_ERROR;
 	}
 	return s;
@@ -131,8 +153,8 @@ int CMSSocket::send_skt(int s, char *data, int len)
 	int length;
 	if ((length = send(s, data, len, 0)) == SOCKET_ERROR)
 	{
-		printf("socket---send error，code：%d\n", WSAGetLastError());
-		if (WSAGetLastError() == WSAEWOULDBLOCK)
+		printf("socket---send error，code：%d\n", geterror_skt());
+		if (geterror_skt() == WOULDBLOCK)
 			return 0;
 		close_skt(s);
 		return -1;
@@ -148,7 +170,7 @@ int CMSSocket::receive_skt(int s, char *data, int len)
 {
 	if ((len = recv(s, data, len, 0)) == SOCKET_ERROR) 
 	{
-		printf("socket---recv error，code：%d\n", WSAGetLastError());
+		printf("socket---recv error，code：%d\n", geterror_skt());
 		close_skt(s);
 		return len;
 	}
@@ -165,7 +187,7 @@ bool CMSSocket::connect_skt(int s, std::string addr, int port)
 
 	if (lAddr == INADDR_NONE)
 	{
-		LPHOSTENT h = gethostbyname(addr.c_str());/*查看是否是域名*/
+		hostent *h = gethostbyname(addr.c_str());/*查看是否是域名*/
 		if (h == NULL)
 			return false;
 		else
@@ -179,7 +201,7 @@ bool CMSSocket::connect_skt(int s, std::string addr, int port)
 
 	if (connect(s, (struct sockaddr *)&sockAddr, sizeof(sockAddr)) == SOCKET_ERROR)
 	{
-		printf("socket---connect error，code：%d\n", WSAGetLastError());
+		printf("socket---connect error，code：%d\n", geterror_skt());
 		close_skt(s);
 		return false;
 	}
@@ -195,7 +217,7 @@ bool CMSSocket::listen_skt(int s, std::string addr, int port)
 
 	if (lAddr == INADDR_NONE)
 	{
-		LPHOSTENT h = gethostbyname(addr.c_str());
+		hostent *h = gethostbyname(addr.c_str());
 		if (h == nullptr)
 			lAddr = htonl(INADDR_ANY);
 		else
@@ -210,13 +232,13 @@ bool CMSSocket::listen_skt(int s, std::string addr, int port)
 
 	if (bind(s, (struct sockaddr *)&sockAddr, sizeof(sockAddr)) != 0)
 	{
-		printf("socket---bind error code:%d\n", WSAGetLastError());
+		printf("socket---bind error code:%d\n", geterror_skt());
 		return false;
 	}
 
 	if (listen(s, 5) != 0)
 	{
-		printf("socket---listen error code:%d\n", WSAGetLastError());
+		printf("socket---listen error code:%d\n", geterror_skt());
 		return false;
 	}
 
@@ -233,7 +255,11 @@ void CMSSocket::accpet_skt(int s)
 	while (true)
 	{
 		/* 堵塞，等待客户端连接 */
+#ifdef __linux__
+		int sockfd = accept(s, (struct sockaddr *)&sockAddr, (socklen_t *)&addrlen);
+#elif  defined(_WIN32)
 		int sockfd = accept(s, (struct sockaddr *)&sockAddr, &addrlen);
+#endif
 		if (sockfd < 0)
 		{
 			break;
@@ -377,7 +403,6 @@ int CMSSocket::sever_create(std::string addr, int port)
 	}
 	return s;
 }
-
 
 bool CMSSocket::get_recvbuf(char **buffer)
 {  

@@ -35,8 +35,6 @@ private:
 	std::list<CSocketObservable*> _observerlist;
 	socketevent _evnet;
 
-
-
 	/*data*/
 	struct recvdata{
 		char buffer[DATAPACKETSIZE];
@@ -59,6 +57,7 @@ public:
 	int  getclientsocksize(){ return (int)_clientsocklist.size(); };
 private:
 	/*basic*/
+	int 	geterror_skt();
 	int		init_skt();
 	int  	make_skt(); 
 	void    close_skt(int s);

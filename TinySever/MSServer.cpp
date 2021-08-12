@@ -1,20 +1,29 @@
 #include "MSServer.h"
 #include <ctime>
-#include <direct.h>
-#include <io.h>
 #include <stdio.h>
 #include <chrono>
 #include <thread>
-#include <windows.h>
+#include <stdarg.h>
+#include <string.h>
+#include <functional>
 
-	//	0 = 黑色 8 = 灰色
-	//	1 = 蓝色 9 = 淡蓝色
-	//	2 = 绿色 A = 淡绿色
-	//	3 = 淡浅蓝色 B = 淡浅绿色
-	//	4 = 红色 C = 淡红色
-	//	5 = 紫色 D = 淡紫色
-	//	6 = 黄色 E = 淡黄色
-	//	7 = 白色 F = 亮白色
+#ifdef __linux__
+#include <sys/io.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#elif  defined(_WIN32)
+#include <io.h>
+#include <direct.h>
+#include <windows.h>
+#endif
+
+#if _MSC_VER
+#define snprintf _snprintf
+#define vsnprintf _vsnprintf
+#define access _access
+#define mkdir _mkdir
+#endif
 
 CMSServer::CMSServer(CMSSocket *sub)
 {
@@ -38,6 +47,33 @@ std::string CMSServer::GetCurTime()
 	return timestr;
 }
 
+std::string CMSServer::GetExePath()
+{
+	std::string s_path;
+#ifdef __linux__
+	char path[1024];
+	int cnt = readlink("/proc/self/exe", path, 1024);
+	if (cnt < 0 || cnt >= 1024)
+	{
+		return NULL;
+	}
+	/*最后一个'/' 后面是可执行程序名，去掉可执行程序的名字，只保留路径*/
+	for (int i = cnt; i >= 0; --i)
+	{
+		if (path[i] == '/')
+		{
+			path[i + 1] = '\0';
+			break;
+		}
+	}
+	s_path = std::string(path);
+#elif  defined(_WIN32)
+	std::string path = _pgmptr;
+	s_path = path.substr(0, path.rfind("\\"));
+#endif
+	return s_path;
+}
+
 void CMSServer::Prtinf(unsigned short cr, const char *_format, ...)
 {
 	char szBuffer[65535];
@@ -47,7 +83,7 @@ void CMSServer::Prtinf(unsigned short cr, const char *_format, ...)
 	va_start(ap, _format);
 	try
 	{
-		_vsnprintf(szBuffer, 65535, _format, ap);
+		vsnprintf(szBuffer, 65535, _format, ap);
 	}
 	catch (...)
 	{
@@ -55,31 +91,41 @@ void CMSServer::Prtinf(unsigned short cr, const char *_format, ...)
 		return;
 	}
 	va_end(ap);
+
+#ifdef _WIN32
+	//	0 = 黑色		1 = 蓝色		2 = 绿色		3 = 淡浅蓝色 	4 = 红色		5 = 紫色		6 = 黄色		7 = 白色	
+	//	8 = 灰色		9 = 淡蓝色	A = 淡绿色	B = 淡浅绿色		C = 淡红色	D = 淡紫色	E = 淡黄色	F = 亮白色
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), cr);
+#endif
 
 	std::string info = szBuffer;
 	info = GetCurTime() + "：" + info;
-	printf(info.c_str());
+	printf("%s", info.c_str());
 
+#ifdef _WIN32
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x0 << 4 | 0x7);
+#endif
 }
 
 void CMSServer::ReadUserInfoJson()
 {
 	/*获取可执行文件目录*/
-	std::string path = _pgmptr;
-	std::string strexe = path.substr(0, path.rfind("\\"));
+	std::string strexe = GetExePath();
 
 	char userinfofile[254];
-	sprintf_s(userinfofile, "%s\\User\\userinfo.json", strexe.c_str());
+	sprintf(userinfofile, "%s/User/userinfo.json", strexe.c_str());
 
-	if (_access(userinfofile, 6) != 0)
+	if (access(userinfofile, 6) != 0)
 	{
 		/*创建User目录*/
-		std::string userpath = strexe + "\\User";
-		if (_access(userpath.c_str(), 0) != 0)
+		std::string userpath = strexe + "/User";
+		if (access(userpath.c_str(), 0) != 0)
 		{
-			_mkdir(userpath.c_str());
+#ifdef __linux__
+			mkdir(userpath.c_str(), S_IRWXU);
+#elif  defined(_WIN32)
+			mkdir(userpath.c_str());
+#endif
 		}
 	}
 
@@ -97,19 +143,22 @@ void CMSServer::ReadUserInfoJson()
 void CMSServer::SaveUserInfoJson()
 {
 	/*获取可执行文件目录*/
-	std::string path = _pgmptr;
-	std::string strexe = path.substr(0, path.rfind("\\"));
+	std::string strexe = GetExePath();
 
 	char userinfofile[254];
-	sprintf_s(userinfofile, "%s\\User\\userinfo.json", strexe.c_str());
+	sprintf(userinfofile, "%s/User/userinfo.json", strexe.c_str());
 
-	if (_access(userinfofile, 6) != 0)
+	if (access(userinfofile, 6) != 0)
 	{
 		/*创建User目录*/
-		std::string userpath = strexe + "\\User";
-		if (_access(userpath.c_str(), 0) != 0)
+		std::string userpath = strexe + "/User";
+		if (access(userpath.c_str(), 0) != 0)
 		{
-			_mkdir(userpath.c_str());
+#ifdef __linux__
+			mkdir(userpath.c_str(), S_IRWXU);
+#elif  defined(_WIN32)
+			mkdir(userpath.c_str());
+#endif
 		}
 	}
 
@@ -322,6 +371,7 @@ void CMSServer::CommandSiginReturn(int socket, DATA_PACK *datapack)
 	Prtinf(0xd, "data---签名：%s\n", sigininfo.userdescription);
 
 	/*校验注册信息*/
+	int usersize = 0;
 	bool result = true;
 	std::string errorinfo = "";
 	if (sigininfo.userid < 99999 || sigininfo.userid >999999999)
@@ -331,8 +381,8 @@ void CMSServer::CommandSiginReturn(int socket, DATA_PACK *datapack)
 		goto LLL;
 	}
 
-	int size = _oJsonuserinfo["userinfo"].GetArraySize();
-	for (int i = 0; i < size; ++i)
+	usersize = _oJsonuserinfo["userinfo"].GetArraySize();
+	for (int i = 0; i < usersize; ++i)
 	{
 		neb::CJsonObject oJson;
 		_oJsonuserinfo["userinfo"].Get(i, oJson);
@@ -394,6 +444,7 @@ void CMSServer::CommandSigoutReturn(int socket, DATA_PACK *datapack)
 	Prtinf(0xd, "data---密码：%s\n", userinfo.password);
 	
 	/*校验登录信息*/
+	int usersize = 0;
 	std::string stpassword = userinfo.password;
 	bool result = false;
 	std::string errorinfo = "";
@@ -403,8 +454,8 @@ void CMSServer::CommandSigoutReturn(int socket, DATA_PACK *datapack)
 		goto LLL;
 	}
 	
-	int size = _oJsonuserinfo["userinfo"].GetArraySize();
-	for (int i = 0; i < size; ++i)
+	usersize = _oJsonuserinfo["userinfo"].GetArraySize();
+	for (int i = 0; i < usersize; ++i)
 	{
 		neb::CJsonObject oJson;
 		_oJsonuserinfo["userinfo"].Get(i, oJson);
@@ -460,6 +511,7 @@ void CMSServer::CommandLoginReturn(int socket, DATA_PACK *datapack)
 	Prtinf(0xd, "data---密码：%s\n", userinfo.password);
 	
 	/*校验登录信息*/	
+	int usersize = 0;
 	USERINFO_RETURN userinfo_return;
 	std::string stpassword = userinfo.password;
 	bool result = false;
@@ -470,8 +522,8 @@ void CMSServer::CommandLoginReturn(int socket, DATA_PACK *datapack)
 		goto LLL;
 	}
 
-	int size = _oJsonuserinfo["userinfo"].GetArraySize();
-	for (int i = 0; i < size; ++i)
+	usersize = _oJsonuserinfo["userinfo"].GetArraySize();
+	for (int i = 0; i < usersize; ++i)
 	{
 		neb::CJsonObject oJson;
 		_oJsonuserinfo["userinfo"].Get(i, oJson);
@@ -577,6 +629,7 @@ void CMSServer::CommandAddFriendReturn(int socket, DATA_PACK *datapack)
 	Prtinf(0xd, "data---打招呼：%s\n", friend_info.info);
 
 	/*校验好友信息*/
+	int usersize = 0;
 	FRIENDINFO_RETURN friendinfo;
 	bool result = false;
 	std::string errorinfo = "";
@@ -588,8 +641,8 @@ void CMSServer::CommandAddFriendReturn(int socket, DATA_PACK *datapack)
 	}
 
 	/*查找添加的好友是否注册*/
-	int size = _oJsonuserinfo["userinfo"].GetArraySize();
-	for (int i = 0; i < size; ++i)
+	usersize= _oJsonuserinfo["userinfo"].GetArraySize();
+	for (int i = 0; i < usersize; ++i)
 	{
 		neb::CJsonObject oJson;
 		_oJsonuserinfo["userinfo"].Get(i, oJson);
@@ -616,7 +669,7 @@ void CMSServer::CommandAddFriendReturn(int socket, DATA_PACK *datapack)
 		goto LLL;
 	}
 
-	for (int i = 0; i < size; ++i)
+	for (int i = 0; i < usersize; ++i)
 	{
 		neb::CJsonObject oJson;
 		_oJsonuserinfo["userinfo"].Get(i, oJson);
@@ -693,6 +746,7 @@ void CMSServer::CommandDelFriendReturn(int socket, DATA_PACK *datapack)
 	Prtinf(0xd, "data---寄语：%s\n", friendinfo.info);
 
 	/*校验好友信息*/
+	int usersize = 0;
 	bool result = false;
 	std::string errorinfo = "";
 
@@ -708,8 +762,8 @@ void CMSServer::CommandDelFriendReturn(int socket, DATA_PACK *datapack)
 		goto LLL;
 	}
 
-	int size = _oJsonuserinfo["userinfo"].GetArraySize();
-	for (int i = 0; i < size; ++i)
+	usersize = _oJsonuserinfo["userinfo"].GetArraySize();
+	for (int i = 0; i < usersize; ++i)
 	{
 		neb::CJsonObject oJson;
 		_oJsonuserinfo["userinfo"].Get(i, oJson);
@@ -799,8 +853,8 @@ void CMSServer::CommandSingleChatReturn(int socket, DATA_PACK *datapack)
 	std::string errorinfo = "";
 
 	bool friendexit = false;
-	int size = _oJsonuserinfo["userinfo"].GetArraySize();
-	for (int i = 0; i < size; ++i)
+	int usersize = _oJsonuserinfo["userinfo"].GetArraySize();
+	for (int i = 0; i < usersize; ++i)
 	{
 		neb::CJsonObject oJson;
 		_oJsonuserinfo["userinfo"].Get(i, oJson);
@@ -839,9 +893,9 @@ void CMSServer::CommandSingleChatReturn(int socket, DATA_PACK *datapack)
 
 		int datasize = 0;
 		if (datapack->datatype == CHAT_TEXT)
-			datasize = sizeof(OSSFILEINFO);
-		else if (datapack->datatype == CHAT_FILE)
 			datasize = sizeof(CHATINFO);
+		else if (datapack->datatype == CHAT_FILE)
+			datasize = sizeof(OSSFILEINFO);
 		SaveCacheInfo((void*)datapack->data, datasize);
 
 		goto LLL;
@@ -881,6 +935,7 @@ void CMSServer::CommandFriendInfoReturn(int socket, DATA_PACK *datapack)
 	Prtinf(0xd, "data---账户：%d\n", userinfo.userid);
 	Prtinf(0xd, "data---密码：%s\n", userinfo.password);
 
+	int usersize = 0;
 	bool result = false;
 	std::string errorinfo = "";
 	if (!_mapUserOnline.count(userinfo.userid))
@@ -892,8 +947,8 @@ void CMSServer::CommandFriendInfoReturn(int socket, DATA_PACK *datapack)
 	ALLRIENDINFO_RETURN friendinfo;
 	friendinfo.isonline &= 0x0;
 	/*获取好友列表*/
-	int size = _oJsonuserinfo["userinfo"].GetArraySize();
-	for (int i = 0; i < size; ++i)
+	usersize = _oJsonuserinfo["userinfo"].GetArraySize();
+	for (int i = 0; i < usersize; ++i)
 	{
 		neb::CJsonObject oJson;
 		_oJsonuserinfo["userinfo"].Get(i, oJson);
@@ -913,7 +968,7 @@ void CMSServer::CommandFriendInfoReturn(int socket, DATA_PACK *datapack)
 	}
 
 	/*获取好友信息*/
-	for (int i = 0; i < size; ++i)
+	for (int i = 0; i < usersize; ++i)
 	{
 		neb::CJsonObject oJson;
 		_oJsonuserinfo["userinfo"].Get(i, oJson);
@@ -963,7 +1018,7 @@ void CMSServer::SaveCacheInfo(void* data, int size)
 {
 	unsigned int userid, friendid;
 	std::string info, bucket, object;
-	int type = CHAT_TEXT;
+	int type = -1;
 
 	if (size == sizeof(CHATINFO))
 	{ 
@@ -986,41 +1041,58 @@ void CMSServer::SaveCacheInfo(void* data, int size)
 		bucket = fileinfo.bucket;
 		object = fileinfo.object;
 	}
+	else if (size == sizeof(FRIEND_INFO))
+	{
+		FRIEND_INFO friendinfo;
+		memset(&friendinfo, 0, sizeof(FRIEND_INFO));
+		memcpy(&friendinfo, (char*)data, sizeof(friendinfo));
+		userid = friendinfo.userid;
+		friendid = friendinfo.friendid;
+		info = friendinfo.info;
+	}
 
 
 	/*缓存文件json*/
 	neb::CJsonObject cachejson;
 
 	/*获取可执行文件目录*/
-	std::string path = _pgmptr;
-	std::string strexe = path.substr(0, path.rfind("\\"));
+	std::string strexe = GetExePath();
 
 	char cachefile[254];
-	sprintf_s(cachefile, "%s\\User\\%d\\cachefile.json", strexe.c_str(), friendid);
+	sprintf(cachefile, "%s/User/%d/cachefile.json", strexe.c_str(), friendid);
 
-	if (_access(cachefile, 6) != 0)
+	if (access(cachefile, 6) != 0)
 	{
 		/*创建User目录*/
-		std::string userpath = strexe + "\\User";
-		if (_access(userpath.c_str(), 0) != 0)
+		std::string userpath = strexe + "/User";
+		if (access(userpath.c_str(), 0) != 0)
 		{
-			_mkdir(userpath.c_str());
+#ifdef __linux__
+			mkdir(userpath.c_str(), S_IRWXU);
+#elif  defined(_WIN32)
+			mkdir(userpath.c_str());
+#endif
 		}
 		/*创建用户ID目录*/
 		char useridpath[254];
-		sprintf_s(useridpath, "%s\\%d", userpath.c_str(), friendid);
-		if (_access(useridpath, 0) != 0)
+		sprintf(useridpath, "%s/%d", userpath.c_str(), friendid);
+		if (access(useridpath, 0) != 0)
 		{
-			_mkdir(useridpath);
+#ifdef __linux__
+			mkdir(useridpath, S_IRWXU);
+#elif  defined(_WIN32)
+			mkdir(useridpath);
+#endif
 		}
 
 		/*创建cachejson*/
 		char struserid[16];
-		sprintf_s(struserid, sizeof(struserid), "%d", userid);
+		snprintf(struserid, sizeof(struserid), "%d", userid);
 
 		neb::CJsonObject friendinfo;
 		friendinfo.AddEmptySubArray("info");
 		friendinfo.AddEmptySubArray("file");
+		friendinfo.AddEmptySubArray("new");
 		if (type == CHAT_TEXT)
 		{
 			friendinfo["info"].Add(info);
@@ -1031,7 +1103,10 @@ void CMSServer::SaveCacheInfo(void* data, int size)
 			fileinfo.Add("bucket", bucket);
 			fileinfo.Add("object", object);
 			friendinfo["file"].Add(fileinfo);
-
+		}
+		else
+		{
+			friendinfo["new"].Add(info);
 		}
 		cachejson.Add(struserid, friendinfo);
 
@@ -1055,7 +1130,7 @@ void CMSServer::SaveCacheInfo(void* data, int size)
 		/*修改cachejson*/
 		neb::CJsonObject friendinfo;
 		char struserid[16];
-		sprintf_s(struserid, sizeof(struserid), "%d", userid);
+		snprintf(struserid, sizeof(struserid), "%d", userid);
 
 		cachejson.Get(struserid, friendinfo);
 
@@ -1070,6 +1145,10 @@ void CMSServer::SaveCacheInfo(void* data, int size)
 			fileinfo.Add("object", object);
 			friendinfo["file"].Add(fileinfo);
 		}
+		else
+		{
+			friendinfo["new"].Add(info);
+		}
 		cachejson.Replace(struserid, friendinfo);
 
 		/*写入文件*/
@@ -1082,12 +1161,11 @@ void CMSServer::SaveCacheInfo(void* data, int size)
 void CMSServer::SenCacheInfo(unsigned int userid)
 {
 	/*获取可执行文件目录*/
-	std::string path = _pgmptr;
-	std::string strexe = path.substr(0, path.rfind("\\"));
+	std::string strexe = GetExePath();
 	char cachefile[254];
-	sprintf_s(cachefile, "%s\\User\\%d\\cachefile.json", strexe.c_str(), userid);
+	sprintf(cachefile, "%s/User/%d/cachefile.json", strexe.c_str(), userid);
 
-	if (_access(cachefile, 6) == 0)
+	if (access(cachefile, 6) == 0)
 	{
 		/*缓存文件json*/
 		neb::CJsonObject cachejson;
@@ -1153,6 +1231,28 @@ void CMSServer::SenCacheInfo(unsigned int userid)
 
 				SendDataPack(_mapUserOnline[userid], &datapack);
 			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+			int friendsz = friendinfo["new"].GetArraySize();
+			for (int i = 0; i < filesz; ++i)
+			{
+				FRIEND_INFO friend_info;
+				unsigned int friendid = atoi(strfriendkey.c_str());
+				std::string info;
+				friendinfo["new"].Get(i, info);
+
+				friend_info.friendid = userid;
+				friend_info.userid = friendid;
+				strcpy(friend_info.info, info.c_str());
+
+				DATA_PACK datapack;
+				datapack.commandtype = COMMAND_ADDFRIEND;
+				datapack.datatype = CHAT_TEXT;
+
+				memcpy(datapack.data, &friend_info, sizeof(FRIEND_INFO));
+
+				SendDataPack(_mapUserOnline[userid], &datapack);
+			}
 		}
 	}
 	remove(cachefile);
@@ -1160,6 +1260,8 @@ void CMSServer::SenCacheInfo(unsigned int userid)
 
 void CMSServer::LoginStateNotify(int state,unsigned int userid)
 {
+	Prtinf(0x8, "log---通知好友%s线\n", state == COMMAND_LOGIN ? "上" : "下");
+
 	DATA_PACK datapack;
 	memset(&datapack, 0, sizeof(DATA_PACK));
 	/*打包结果*/
