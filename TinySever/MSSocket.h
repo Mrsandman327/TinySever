@@ -14,7 +14,7 @@
 
 enum socketevent
 {
-	clientrevc = 0,
+	clientrecv = 0,
 		serverrecv,
 		clientaccpet,
 		clientdiscon,

@@ -1,12 +1,14 @@
 #include "MSSocket.h"
 #include <stdio.h>
 #include <string.h>
+#include <thread>
+#include <mutex>
 
 #ifdef __linux__
 #include <arpa/inet.h>
-#include<netinet/in.h>
-#include<sys/socket.h>
-#include<sys/types.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <unistd.h> //close()
 #include <netdb.h> //gethostbyname
 
@@ -23,6 +25,8 @@
 #pragma comment(lib,"ws2_32.lib") 
 #define WOULDBLOCK  WSAEWOULDBLOCK
 #endif
+
+std::mutex g_mutex;
 
 CMSSocket::CMSSocket()
 {
@@ -51,8 +55,7 @@ void CMSSocket::dttach_observable(CSocketObservable* observer)
 
 void CMSSocket::notify_observable(int socket)
 {
-	std::list<CSocketObservable*>::iterator it;
-	for (it = _observerlist.begin(); it != _observerlist.end(); it++)
+	for (auto it = _observerlist.begin(); it != _observerlist.end(); it++)
 	{
 		(*it)->Update(socket);
 	}
@@ -81,7 +84,7 @@ int CMSSocket::geterror_skt()
 #ifdef __linux__
 	return errno;
 #elif  defined(_WIN32)
-	return WSAGetLastError();
+	return GetLastError();
 #endif
 
 }
@@ -94,13 +97,13 @@ int CMSSocket::init_skt()
 	if ((WSAStartup(WS_VERSION_CHOICE1, &wsaData) != 0) &&
 		((WSAStartup(WS_VERSION_CHOICE2, &wsaData)) != 0))
 	{
-		printf("socket---WSAStartup error，code：%d\n", geterror_skt());
+		printf("socket---WSAStartup error,code:%d\n", geterror_skt());
 		return -1;
 	}
 	if ((wsaData.wVersion != WS_VERSION_CHOICE1) &&
 		(wsaData.wVersion != WS_VERSION_CHOICE2))
 	{
-		printf("socket---WSAStartup error，code：%d\n", geterror_skt());
+		printf("socket---WSAStartup error,code:%d\n", geterror_skt());
 		WSACleanup();
 		return -1;
 	}
@@ -112,7 +115,7 @@ int CMSSocket::make_skt()
 {
 	int s = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 	if (s == INVALID_SOCKET) {
-		printf("socket---socket error，code：%d\n", geterror_skt());
+		printf("socket---socket error,code:%d\n", geterror_skt());
 		return SOCKET_ERROR;
 	}
 	return s;
@@ -153,7 +156,7 @@ int CMSSocket::send_skt(int s, char *data, int len)
 	int length;
 	if ((length = send(s, data, len, 0)) == SOCKET_ERROR)
 	{
-		printf("socket---send error，code：%d\n", geterror_skt());
+		printf("socket---send error,code:%d\n", geterror_skt());
 		if (geterror_skt() == WOULDBLOCK)
 			return 0;
 		close_skt(s);
@@ -170,7 +173,7 @@ int CMSSocket::receive_skt(int s, char *data, int len)
 {
 	if ((len = recv(s, data, len, 0)) == SOCKET_ERROR) 
 	{
-		printf("socket---recv error，code：%d\n", geterror_skt());
+		printf("socket---recv error,code:%d\n", geterror_skt());
 		close_skt(s);
 		return len;
 	}
@@ -201,7 +204,7 @@ bool CMSSocket::connect_skt(int s, std::string addr, int port)
 
 	if (connect(s, (struct sockaddr *)&sockAddr, sizeof(sockAddr)) == SOCKET_ERROR)
 	{
-		printf("socket---connect error，code：%d\n", geterror_skt());
+		printf("socket---connect error,code:%d\n", geterror_skt());
 		close_skt(s);
 		return false;
 	}
@@ -224,6 +227,10 @@ bool CMSSocket::listen_skt(int s, std::string addr, int port)
 			lAddr = *((unsigned long *)(h->h_addr));
 	}
 
+	/*允许重用本地地址和端口*/
+	int breuseaddr = 1;
+	setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (const char*)&breuseaddr, sizeof(int));
+
 	sockaddr_in sockAddr;
 	//memset(sockAddr.sin_zero, 0, sizeof(struct sockaddr_in));
 	sockAddr.sin_family = AF_INET;
@@ -232,13 +239,13 @@ bool CMSSocket::listen_skt(int s, std::string addr, int port)
 
 	if (bind(s, (struct sockaddr *)&sockAddr, sizeof(sockAddr)) != 0)
 	{
-		printf("socket---bind error code:%d\n", geterror_skt());
+		printf("socket---bind error,code:%d\n", geterror_skt());
 		return false;
 	}
 
 	if (listen(s, 5) != 0)
 	{
-		printf("socket---listen error code:%d\n", geterror_skt());
+		printf("socket---listen error,code:%d\n", geterror_skt());
 		return false;
 	}
 
@@ -293,20 +300,19 @@ void CMSSocket::accpet_skt(int s)
 
 void CMSSocket::clientreceive_skt(int s)
 {
-	int		read;
 	char	buf[65535];
 	while (true)
 	{
-		read = receive_skt(s, buf, sizeof(buf));
-		if (read == 0)
+		int datalen = receive_skt(s, buf, sizeof(buf));
+		if (datalen == 0)
 		{
 			continue;
 		}
-		else if (read == SOCKET_ERROR)
+		else if (datalen == SOCKET_ERROR)
 		{
 			break;
 		}
-		else if (read == DATAPACKETSIZE)
+		else
 		{
 			recvdata data;
 			memcpy(&data, buf, DATAPACKETSIZE);
@@ -314,13 +320,10 @@ void CMSSocket::clientreceive_skt(int s)
 			_dataqueue.push(recvda);
 
 			/* 通知订阅者 */
-			setsocketevent(clientrevc);
-			notify_observable(s);
-		}
-		else
-		{
-			/* 通知订阅者 */
-			setsocketevent(datanodefine);
+			if (datalen == DATAPACKETSIZE)
+				setsocketevent(clientrecv);
+			else
+				setsocketevent(datanodefine);
 			notify_observable(s);
 		}
 	}
@@ -335,16 +338,16 @@ void CMSSocket::severreceive_skt(int s)
 	char	buf[65535];
 	while (true)
 	{
-		int read = receive_skt(s, buf, sizeof(buf));
-		if (read == 0)
+		int datalen = receive_skt(s, buf, sizeof(buf));
+		if (datalen == 0)
 		{
 			continue;
 		}
-		else if (read == SOCKET_ERROR)
+		else if (datalen == SOCKET_ERROR)
 		{
 			break;
 		}
-		else if (read == DATAPACKETSIZE)
+		else
 		{
 			recvdata data;
 			memcpy(&data, buf, DATAPACKETSIZE);
@@ -352,13 +355,10 @@ void CMSSocket::severreceive_skt(int s)
 			_dataqueue.push(recvda);
 
 			/* 通知订阅者 */
-			setsocketevent(serverrecv);
-			notify_observable(s);
-		}
-		else
-		{
-			/* 通知订阅者 */
-			setsocketevent(datanodefine);
+			if (datalen == DATAPACKETSIZE)
+				setsocketevent(serverrecv);
+			else
+				setsocketevent(datanodefine);
 			notify_observable(s);		
 		}
 	}

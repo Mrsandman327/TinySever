@@ -48,5 +48,8 @@ public:
 	void CommandDelFriendReturn(int socket, DATA_PACK *datapack);
 	void CommandSingleChatReturn(int socket, DATA_PACK *datapack);
 	void CommandFriendInfoReturn(int socket, DATA_PACK *datapack);
+
+	/**/
+	void UndefineDataRequst(int socket);
 };
 
