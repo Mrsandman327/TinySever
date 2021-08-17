@@ -1,6 +1,14 @@
-#设置输出文件
+#区分系统
+ifeq ($(OS),Windows_NT) #Windows stuff 
+DEL = del
+APP = tinyserver.exe
+LIB = -lpthread -lws2_32
+else #Linux stuff
 APP = tinyserver
-#设置编译器
+DEL = rm -rf
+LIB = -lpthread
+endif
+#设置编译器 
 CC = g++
 # 如果是当前目录，也可以不指定
 SOURCE_DIR = ./									
@@ -20,14 +28,17 @@ target:
 all:${APP}
 #生成带GBD调试选项的可执行文件
 ${APP}:$(CUR_C_OBJS) $(CUR_CPP_OBJS)
-	$(CC) -g -std=c++11 $^ -o $@ -lpthread
+	$(CC) -std=c++11 $^ -o $@ $(LIB)
 #编译所有.c文件
 $(CUR_C_OBJS):%.o:%.c
-	$(CC) -c -std=c++11 $^ -o $@
+	$(CC) -g -c -std=c++11 $^ -o $@
 #编译所有.cpp文件
 $(CUR_CPP_OBJS):%.o:%.cpp
-	$(CC) -c -std=c++11 $^ -o $@
-
+	$(CC) -g -c -std=c++11 $^ -o $@
+	
 clean:
-	rm -rf *.o 
-#rm -rf *.o ${APP}
+	$(DEL) *.o 
+clear:
+	$(DEL) *.o ${APP}
+
+

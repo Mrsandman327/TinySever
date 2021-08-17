@@ -59,6 +59,7 @@ private:
 	/*basic*/
 	int 	geterror_skt();
 	int		init_skt();
+	int		uninit_skt();
 	int  	make_skt(); 
 	void    close_skt(int s);
 

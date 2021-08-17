@@ -9,7 +9,7 @@
             "name": "g++ - bulid&debug",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${fileDirname}/tinyserver",   //${fileBasenameNoExtension}",
+            "program": "${fileDirname}/tinyserver.exe",   //${fileBasenameNoExtension}",
             "args": [
             "",
             "80"
@@ -27,7 +27,7 @@
                 }
             ],
             "preLaunchTask": "build-debug",
-            "miDebuggerPath": "/usr/bin/gdb"
+            "miDebuggerPath": "G:/gcc/mingw-w64/i686-8.1.0-posix-dwarf-rt_v6-rev0/mingw32/bin/gdb.exe"
         }
     ]
 }

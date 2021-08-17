@@ -235,32 +235,41 @@ void CMSServer::UndefineDataRequst(int socket)
 		char *mime = nullptr;
 		if (strstr(filename, "html"))
 		{
-			mime = "text/html";
+			mime = (char*)"text/html";
 		}
 		else if (strstr(filename, ".png"))
 		{
-			mime = "img/png";
+			mime = (char*)"img/png";
+		}
+		else if (strstr(filename, ".jpg"))
+		{
+			mime = (char*)"img/jpg";
 		}
 
 		/*应答包头*/
-		const int datalen = 1024 * 200;
-		char *response = new char[datalen];
-		memset(response, 0, datalen);
-		sprintf(response, "HTTP/1.1 200 OK\r\nConrent-Type:%s\r\n\r\n", mime);
-		int headlen = strlen(response);
+		char head[128];
+		sprintf(head, "HTTP/1.1 200 OK\r\nConrent-Type:%s\r\n\r\n", mime);
+		int headlen = strlen(head);
 
 		/*应答包内容*/
 		char file[128];
 		sprintf(file, "%s/%s", GetExePath().c_str(), filename);
 		std::shared_ptr<std::iostream> content = std::make_shared<std::fstream>(file, std::ios::in | std::ios::binary);
-		content->read(response + headlen, datalen - headlen);
 
-		/*发送应答包*/
-		if (0 == _socket->send_skt(socket, (char*)response, datalen))
+		const int datalen = 1024;
+		char buffer[datalen];
+		memset(buffer, 0, datalen);
+		memcpy(buffer, head, headlen);
+		while (!content->eof())
 		{
-
+			content->read(buffer + headlen, datalen - headlen);
+			/*发送应答包*/
+			if (0 == _socket->send_skt(socket, (char*)buffer, datalen))
+			{
+				headlen = 0;
+			}
+			
 		}
-		delete[] response;
 	}
 	delete[] buffer;
 }

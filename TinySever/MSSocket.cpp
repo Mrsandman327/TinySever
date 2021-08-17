@@ -30,10 +30,12 @@ std::mutex g_mutex;
 
 CMSSocket::CMSSocket()
 {
+	init_skt();
 }
 
 CMSSocket::~CMSSocket()
 {
+	uninit_skt();
 }
 
 void CMSSocket::attach_observable(CSocketObservable *observer)
@@ -109,6 +111,14 @@ int CMSSocket::init_skt()
 	}
 #endif
 	return 0;
+}
+
+int CMSSocket::uninit_skt()
+{
+#ifdef _WIN32
+	WSACleanup();
+#endif
+	return 1;
 }
 
 int CMSSocket::make_skt()
@@ -237,13 +247,13 @@ bool CMSSocket::listen_skt(int s, std::string addr, int port)
 	sockAddr.sin_addr.s_addr = lAddr;
 	sockAddr.sin_port = htons(port);
 
-	if (bind(s, (struct sockaddr *)&sockAddr, sizeof(sockAddr)) != 0)
+	if (bind(s, (struct sockaddr *)&sockAddr, sizeof(sockAddr)) == SOCKET_ERROR)
 	{
 		printf("socket---bind error,code:%d\n", geterror_skt());
 		return false;
 	}
 
-	if (listen(s, 5) != 0)
+	if (listen(s, 5) == SOCKET_ERROR)
 	{
 		printf("socket---listen error,code:%d\n", geterror_skt());
 		return false;
@@ -267,7 +277,7 @@ void CMSSocket::accpet_skt(int s)
 #elif  defined(_WIN32)
 		int sockfd = accept(s, (struct sockaddr *)&sockAddr, &addrlen);
 #endif
-		if (sockfd < 0)
+		if (sockfd == INVALID_SOCKET)
 		{
 			break;
 		}
@@ -370,9 +380,6 @@ void CMSSocket::severreceive_skt(int s)
 
 int CMSSocket::client_connect(std::string addr, int port)
 {
-	if (init_skt() != 0) 
-		return false;
-
 	int s = make_skt();
 	if (s == SOCKET_ERROR)
 		return false;
@@ -390,9 +397,6 @@ int CMSSocket::client_connect(std::string addr, int port)
 
 int CMSSocket::sever_create(std::string addr, int port)
 {
-	if (init_skt() != 0) 
-		return false;
-
 	int s = make_skt();
 	if (s == SOCKET_ERROR)
 		return false;

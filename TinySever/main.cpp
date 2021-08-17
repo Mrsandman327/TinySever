@@ -9,7 +9,6 @@
 #elif  defined(_WIN32)
 #include <io.h>
 #include <direct.h>
-#include <windows.h>
 #endif
 
 int main(int argc, char *argv[])
