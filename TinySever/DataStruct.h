@@ -1,30 +1,30 @@
-#pragma pack(push,1)
+ï»¿#pragma pack(push,1)
 
 enum COMMANDTYPE
 {
-	COMMAND_SIGIN, /*×¢²á*/
-	COMMAND_SIGOUT, /*×¢Ïú*/
-	COMMAND_LOGIN,/*µÇÈë*/
-	COMMAND_LOGOUT,/*µÇ³ö*/
-	COMMAND_ADDFRIEND,/*Ìí¼ÓºÃÓÑ*/
-	COMMAND_DELFRIEND,/*É¾³ıºÃÓÑ*/
-	COMMAND_ADDGROUND,/*¼ÓÈëÈºÁÄ*/
-	COMMAND_DELGROUND,/*ÍË³öÈºÁÄ*/
-	COMMAND_SINGLECHAT,/*µ¥ÁÄ*/
-	COMMAND_GROUPCHAT,/*ÈºÁÄ*/
-	COMMAND_FRIENDINFO/*ºÃÓÑĞÅÏ¢*/
+	COMMAND_SIGIN, /*æ³¨å†Œ*/
+	COMMAND_SIGOUT, /*æ³¨é”€*/
+	COMMAND_LOGIN,/*ç™»å…¥*/
+	COMMAND_LOGOUT,/*ç™»å‡º*/
+	COMMAND_ADDFRIEND,/*æ·»åŠ å¥½å‹*/
+	COMMAND_DELFRIEND,/*åˆ é™¤å¥½å‹*/
+	COMMAND_ADDGROUND,/*åŠ å…¥ç¾¤èŠ*/
+	COMMAND_DELGROUND,/*é€€å‡ºç¾¤èŠ*/
+	COMMAND_SINGLECHAT,/*å•èŠ*/
+	COMMAND_GROUPCHAT,/*ç¾¤èŠ*/
+	COMMAND_FRIENDINFO/*å¥½å‹ä¿¡æ¯*/
 };
 
-/*·şÎñÆ÷¶ş¼¶½á¹¹ÌåÀàĞÍ*/
+/*æœåŠ¡å™¨äºŒçº§ç»“æ„ä½“ç±»å‹*/
 enum SEVERDATATYPE
 {
-	CHAT_TEXT,/*ÁÄÌìĞÅÏ¢*/
-	CHAT_FILE,/*ÎÄ¼şĞÅÏ¢*/
-	NOTIFY_INFO,/*Í¨ÖªĞÅÏ¢*/
-	RESULT_RETURN/*·şÎñÆ÷·µ»Ø½á¹ûĞÅÏ¢*/
+	CHAT_TEXT,/*èŠå¤©ä¿¡æ¯*/
+	CHAT_FILE,/*æ–‡ä»¶ä¿¡æ¯*/
+	NOTIFY_INFO,/*é€šçŸ¥ä¿¡æ¯*/
+	RESULT_RETURN/*æœåŠ¡å™¨è¿”å›ç»“æœä¿¡æ¯*/
 };
 
-/*¿Í»§¶Ë¶ş¼¶½á¹¹ÌåÀàĞÍ*/
+/*å®¢æˆ·ç«¯äºŒçº§ç»“æ„ä½“ç±»å‹*/
 enum CLIENTRDATATYPE
 {
 	COMMAND
@@ -36,7 +36,7 @@ enum RESULT
 	OK
 };
 
-/*ÁÄÌìĞÅÏ¢ 1022*/
+/*èŠå¤©ä¿¡æ¯ 1022*/
 struct CHATINFO
 {
 	unsigned int useridfrom;/*4*/
@@ -44,7 +44,7 @@ struct CHATINFO
 	char info[1014];/*1014*/
 };
 
-/*ÎÄ¼şĞÅÏ¢ 128*/
+/*æ–‡ä»¶ä¿¡æ¯ 128*/
 struct OSSFILEINFO
 {
 	unsigned int useridfrom;/*4*/
@@ -53,9 +53,9 @@ struct OSSFILEINFO
 	char object[64];
 };
 
-/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@·şÎñÆ÷·µ»ØĞÅÏ¢@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
-//Ò»¼¶·µ»ØÊı¾İ½á¹¹Ìå
-/*½á¹ûĞÅÏ¢ 1022*/
+/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@æœåŠ¡å™¨è¿”å›ä¿¡æ¯@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
+//ä¸€çº§è¿”å›æ•°æ®ç»“æ„ä½“
+/*ç»“æœä¿¡æ¯ 1022*/
 struct RESULTINFO_RETURN
 {
 	unsigned char result;
@@ -63,15 +63,15 @@ struct RESULTINFO_RETURN
 };
 
 
-//¶ş¼¶·µ»ØÊı¾İ½á¹¹Ìå
-/*ÓÃ»§ĞÅÏ¢ 84*/
+//äºŒçº§è¿”å›æ•°æ®ç»“æ„ä½“
+/*ç”¨æˆ·ä¿¡æ¯ 84*/
 struct USERINFO_RETURN
 {
 	char nickname[20];/*20*/
 	char userdescription[64];/*64*/
 };
 
-/*ºÃÓÑĞÅÏ¢ 88*/
+/*å¥½å‹ä¿¡æ¯ 88*/
 struct FRIENDINFO_RETURN
 {
 	unsigned int friendid;/*4*/
@@ -79,7 +79,7 @@ struct FRIENDINFO_RETURN
 	char userdescription[64];/*64*/
 };
 
-/*È«²¿ºÃÓÑĞÅÏ¢ 882*/
+/*å…¨éƒ¨å¥½å‹ä¿¡æ¯ 882*/
 struct ALLRIENDINFO_RETURN
 {
 	unsigned short friendsize:6;/*2*/
@@ -89,8 +89,8 @@ struct ALLRIENDINFO_RETURN
 	char userdescription[10][64];/*640*/
 };
 
-/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@¿Í»§¶ËÇëÇóĞÅÏ¢@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
-/*×¢²áĞÅÏ¢(×¢²áÊ¹ÓÃ) 148*/
+/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@å®¢æˆ·ç«¯è¯·æ±‚ä¿¡æ¯@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
+/*æ³¨å†Œä¿¡æ¯(æ³¨å†Œä½¿ç”¨) 148*/
 struct SIGIN_INFO
 {
 	char nickname[20];/*20*/
@@ -99,14 +99,14 @@ struct SIGIN_INFO
 	char userdescription[64];/*64*/
 };
 
-/*ÓÃ»§ĞÅÏ¢(µÇÈë£¬µÇ³ö£¬»ñÈ¡ºÃÓÑĞÅÏ¢£¬×¢Ïú) 24*/
+/*ç”¨æˆ·ä¿¡æ¯(ç™»å…¥ï¼Œç™»å‡ºï¼Œè·å–å¥½å‹ä¿¡æ¯ï¼Œæ³¨é”€) 24*/
 struct USER_INFO
 {
 	unsigned int userid;/*4*/
 	char password[20];/*20*/
 };
 
-/*ºÃÓÑĞÅÏ¢(ÔöÉ¾ºÃÓÑ) 24*/
+/*å¥½å‹ä¿¡æ¯(å¢åˆ å¥½å‹) 24*/
 struct FRIEND_INFO
 {
 	unsigned int userid;/*4*/
@@ -114,13 +114,13 @@ struct FRIEND_INFO
 	char info[128];
 };
 
-/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@Êı¾İ°ü@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
-/*1024*/ //»¨Éú¿Ç´ø¿íÖ»ÓĞ1M£¨1024byte£©£¬ËùÒÔ¸Ã½á¹¹ÌåÕıºÃÊ¹ÓÃ1024×Ö½Ú£¬·ÀÖ¹·ÖÆ¬
+/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@æ•°æ®åŒ…@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/
+/*1024*/ //èŠ±ç”Ÿå£³å¸¦å®½åªæœ‰1Mï¼ˆ1024byteï¼‰ï¼Œæ‰€ä»¥è¯¥ç»“æ„ä½“æ­£å¥½ä½¿ç”¨1024å­—èŠ‚ï¼Œé˜²æ­¢åˆ†ç‰‡
 struct DATA_PACK
 {
-	unsigned char commandtype;/*ÃüÁîÀàĞÍ 1byte*/
-	unsigned char datatype;/*Êı¾İÀàĞÍ 1byte*/
-	char data[1022];/*Êı¾İ 1022byte*/
+	unsigned char commandtype;/*å‘½ä»¤ç±»å‹ 1byte*/
+	unsigned char datatype;/*æ•°æ®ç±»å‹ 1byte*/
+	char data[1022];/*æ•°æ® 1022byte*/
 };
 
 #pragma pack(pop)

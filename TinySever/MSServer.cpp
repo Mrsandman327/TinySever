@@ -1,4 +1,4 @@
-#include "MSServer.h"
+ï»¿#include "MSServer.h"
 #include <ctime>
 #include <stdio.h>
 #include <chrono>
@@ -57,7 +57,7 @@ std::string CMSServer::GetExePath()
 	{
 		return NULL;
 	}
-	/* ×îºóÒ»¸ö'/' ºóÃæÊÇ¿ÉÖ´ĞĞ³ÌĞòÃû£¬È¥µô¿ÉÖ´ĞĞ³ÌĞòµÄÃû×Ö£¬Ö»±£ÁôÂ·¾¶ ²»°üº¬×îºóÒ»¸ö'/' */
+	/*æœ€åä¸€ä¸ª'/' åé¢æ˜¯å¯æ‰§è¡Œç¨‹åºåï¼Œå»æ‰å¯æ‰§è¡Œç¨‹åºçš„åå­—ï¼Œåªä¿ç•™è·¯å¾„*/
 	for (int i = cnt; i >= 0; --i)
 	{
 		if (path[i] == '/')
@@ -93,8 +93,8 @@ void CMSServer::Prtinf(unsigned short cr, const char *_format, ...)
 	va_end(ap);
 
 #ifdef _WIN32
-	//	0 = ºÚÉ«		1 = À¶É«		2 = ÂÌÉ«		3 = µ­Ç³À¶É« 	4 = ºìÉ«		5 = ×ÏÉ«		6 = »ÆÉ«		7 = °×É«	
-	//	8 = »ÒÉ«		9 = µ­À¶É«	A = µ­ÂÌÉ«	B = µ­Ç³ÂÌÉ«		C = µ­ºìÉ«	D = µ­×ÏÉ«	E = µ­»ÆÉ«	F = ÁÁ°×É«
+	//	0 = é»‘è‰²		1 = è“è‰²		2 = ç»¿è‰²		3 = æ·¡æµ…è“è‰² 	4 = çº¢è‰²		5 = ç´«è‰²		6 = é»„è‰²		7 = ç™½è‰²	
+	//	8 = ç°è‰²		9 = æ·¡è“è‰²	A = æ·¡ç»¿è‰²	B = æ·¡æµ…ç»¿è‰²		C = æ·¡çº¢è‰²	D = æ·¡ç´«è‰²	E = æ·¡é»„è‰²	F = äº®ç™½è‰²
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), cr);
 #endif
 
@@ -109,7 +109,7 @@ void CMSServer::Prtinf(unsigned short cr, const char *_format, ...)
 
 void CMSServer::ReadUserInfoJson()
 {
-	/*»ñÈ¡¿ÉÖ´ĞĞÎÄ¼şÄ¿Â¼*/
+	/*è·å–å¯æ‰§è¡Œæ–‡ä»¶ç›®å½•*/
 	std::string strexe = GetExePath();
 
 	char userinfofile[254];
@@ -117,7 +117,7 @@ void CMSServer::ReadUserInfoJson()
 
 	if (access(userinfofile, 6) != 0)
 	{
-		/*´´½¨UserÄ¿Â¼*/
+		/*åˆ›å»ºUserç›®å½•*/
 		std::string userpath = strexe + "/User";
 		if (access(userpath.c_str(), 0) != 0)
 		{
@@ -142,7 +142,7 @@ void CMSServer::ReadUserInfoJson()
 
 void CMSServer::SaveUserInfoJson()
 {
-	/*»ñÈ¡¿ÉÖ´ĞĞÎÄ¼şÄ¿Â¼*/
+	/*è·å–å¯æ‰§è¡Œæ–‡ä»¶ç›®å½•*/
 	std::string strexe = GetExePath();
 
 	char userinfofile[254];
@@ -150,7 +150,7 @@ void CMSServer::SaveUserInfoJson()
 
 	if (access(userinfofile, 6) != 0)
 	{
-		/*´´½¨UserÄ¿Â¼*/
+		/*åˆ›å»ºUserç›®å½•*/
 		std::string userpath = strexe + "/User";
 		if (access(userpath.c_str(), 0) != 0)
 		{
@@ -206,12 +206,12 @@ void CMSServer::Update(int socket)
 	socketevent event = _socket->getsocketevent();
 	switch (event)
 	{
-	case clientrecv: Prtinf(0x6, "user---socket:%d ¿Í»§¶ËÊÕµ½ĞÅÏ¢\n", socket); break;
-	case clientaccpet:Prtinf(0x6, "user---socket:%d ¿Í»§¶ËÁ¬½Ó\n", socket); break;
-	case clientdiscon:Prtinf(0x6, "user---socket:%d ¿Í»§¶Ë¶Ï¿ªÁ¬½Ó\n", socket); MapRomoveByValue(socket); break;
-	case servercolse:Prtinf(0x6, "user---socket:%d ·şÎñÆ÷¹Ø±Õ\n", socket); _oJsonuserinfo.Clear(); _mapUserOnline.clear(); break;
-	case datanodefine:Prtinf(0x6, "user---socket:%d Î´¶¨ÒåÊı¾İ\n", socket); UndefineDataRequst(socket); break;
-	case serverrecv:Prtinf(0x6, "user---socket:%d ·şÎñÆ÷ÊÕµ½ÏûÏ¢\n", socket); RecvDataProcess(socket); break;
+	case clientrecv: Prtinf(0x6, "user---socket:%d Client receives information\n", socket); break;
+	case clientaccpet:Prtinf(0x6, "user---socket:%d Client connection\n", socket); break;
+	case clientdiscon:Prtinf(0x6, "user---socket:%d Client disconnected\n", socket); MapRomoveByValue(socket); break;
+	case servercolse:Prtinf(0x6, "user---socket:%d Server shut down\n", socket); _oJsonuserinfo.Clear(); _mapUserOnline.clear(); break;
+	case datanodefine:Prtinf(0x6, "user---socket:%d Undefined data\n", socket); UndefineDataRequst(socket); break;
+	case serverrecv:Prtinf(0x6, "user---socket:%d Server received message\n", socket); RecvDataProcess(socket); break;
 	default:
 		break;
 	}
@@ -226,12 +226,12 @@ void CMSServer::UndefineDataRequst(int socket)
 
 	if (strstr(buffer, "HTTP"))
 	{
-		/*½âÎöÇëÇó*/
+		/*è§£æè¯·æ±‚*/
 		char filename[10] = { 0 };
 		sscanf(buffer, "GET /%s", filename);
-		printf("½âÎöµ½µÄÎÄ¼şÃûÊÇ%s\n", filename);
+		printf("filename: %s\n", filename);
 
-		/*ÉèÖÃÄÚÈİÀàĞÍ*/
+		/*è®¾ç½®å†…å®¹ç±»å‹*/
 		char *mime = nullptr;
 		if (strstr(filename, "html"))
 		{
@@ -246,12 +246,12 @@ void CMSServer::UndefineDataRequst(int socket)
 			mime = (char*)"img/jpg";
 		}
 
-		/*Ó¦´ğ°üÍ·*/
+		/*åº”ç­”åŒ…å¤´*/
 		char head[128];
 		sprintf(head, "HTTP/1.1 200 OK\r\nConrent-Type:%s\r\n\r\n", mime);
 		int headlen = strlen(head);
 
-		/*Ó¦´ğ°üÄÚÈİ*/
+		/*åº”ç­”åŒ…å†…å®¹*/
 		char file[128];
 		sprintf(file, "%s/%s", GetExePath().c_str(), filename);
 		std::shared_ptr<std::iostream> content = std::make_shared<std::fstream>(file, std::ios::in | std::ios::binary);
@@ -263,7 +263,7 @@ void CMSServer::UndefineDataRequst(int socket)
 		while (!content->eof())
 		{
 			content->read(buffer + headlen, datalen - headlen);
-			/*·¢ËÍÓ¦´ğ°ü*/
+			/*å‘é€åº”ç­”åŒ…*/
 			if (0 == _socket->send_skt(socket, (char*)buffer, datalen))
 			{
 				headlen = 0;
@@ -286,81 +286,81 @@ void CMSServer::RecvDataProcess(int socket)
 
 		switch (COMMANDTYPE(datapack.commandtype))
 		{
-		case COMMAND_SIGIN: /*×¢²á*/
+		case COMMAND_SIGIN: /*æ³¨å†Œ*/
 			{
-				Prtinf(0x5, "%s---ÊÕµ½×¢²áÉêÇë£¡\n", GetCurTime().c_str());
+				Prtinf(0x5, "%s---Receipt of sigin application!\n", GetCurTime().c_str());
 				CommandReturn = std::bind(&CMSServer::CommandSiginReturn, this, std::placeholders::_1, std::placeholders::_2);
 			}
 			break;
-		case COMMAND_SIGOUT: /*×¢Ïú*/
+		case COMMAND_SIGOUT: /*æ³¨é”€*/
 			{
-				Prtinf(0x5, "%s---ÊÕµ½×¢ÏúÉêÇë£¡\n", GetCurTime().c_str());
+				Prtinf(0x5, "%s---Receipt of sigout application!\n", GetCurTime().c_str());
 				CommandReturn = std::bind(&CMSServer::CommandSigoutReturn, this, std::placeholders::_1, std::placeholders::_2);	
 			}
 			break;
-		case COMMAND_LOGIN:/*µÇÈë*/
+		case COMMAND_LOGIN:/*ç™»å…¥*/
 			{
-				Prtinf(0x5, "%s---ÊÕµ½µÇÂ¼ÉêÇë£¡\n", GetCurTime().c_str());
+				Prtinf(0x5, "%s---Receipt of login application!!\n", GetCurTime().c_str());
 				CommandReturn = std::bind(&CMSServer::CommandLoginReturn, this, std::placeholders::_1, std::placeholders::_2);
 			}
 			break;
-		case COMMAND_LOGOUT:/*µÇ³ö*/
+		case COMMAND_LOGOUT:/*ç™»å‡º*/
 			{
-				Prtinf(0x5, "%s---ÊÕµ½ÍË³öµÇÂ¼ÉêÇë£¡\n", GetCurTime().c_str());
+				Prtinf(0x5, "%s---Receipt of logout application!!\n", GetCurTime().c_str());
 				CommandReturn = std::bind(&CMSServer::CommandLogoutReturn, this, std::placeholders::_1, std::placeholders::_2);
 			}
 			break;
-		case COMMAND_ADDFRIEND:/*Ìí¼ÓºÃÓÑ*/
+		case COMMAND_ADDFRIEND:/*æ·»åŠ å¥½å‹*/
 			{
-				Prtinf(0x5, "%s---ÊÕµ½Ìí¼ÓºÃÓÑÉêÇë£¡\n", GetCurTime().c_str());
+				Prtinf(0x5, "%s---Receipt of add friend application!!\n", GetCurTime().c_str());
 				CommandReturn = std::bind(&CMSServer::CommandAddFriendReturn, this, std::placeholders::_1, std::placeholders::_2);
 			}
 			break;
-		case COMMAND_DELFRIEND:/*É¾³ıºÃÓÑ*/
+		case COMMAND_DELFRIEND:/*åˆ é™¤å¥½å‹*/
 			{
-				Prtinf(0x5, "%s---ÊÕµ½É¾³ıºÃÓÑÉêÇë£¡\n", GetCurTime().c_str());
+				Prtinf(0x5, "%s---Receipt of del friend application!!\n", GetCurTime().c_str());
 				CommandReturn = std::bind(&CMSServer::CommandDelFriendReturn, this, std::placeholders::_1, std::placeholders::_2);
 			}
 			break;
-		case COMMAND_ADDGROUND:/*¼ÓÈëÈºÁÄ*/
+		case COMMAND_ADDGROUND:/*åŠ å…¥ç¾¤èŠ*/
 			{
-				Prtinf(0x5, "%s---ÊÕµ½¼ÓÈëÈºÁÄÉêÇë£¡\n", GetCurTime().c_str());
+				Prtinf(0x5, "%s---æ”¶åˆ°åŠ å…¥ç¾¤èŠç”³è¯·!\n", GetCurTime().c_str());
 				CHATINFO chatinfo;
 				memcpy(&chatinfo, datapack.data, sizeof(chatinfo));
-				Prtinf(0xd, "data---ÉêÇëÈË:%d\n", chatinfo.useridfrom);
-				Prtinf(0xd, "data---Òª¼ÓÈëµÄÈº:%d\n", chatinfo.useridto);
-				Prtinf(0xd, "data---´òÕĞºô:%s\n", chatinfo.info);
+				Prtinf(0xd, "data---ç”³è¯·äºº:%d\n", chatinfo.useridfrom);
+				Prtinf(0xd, "data---è¦åŠ å…¥çš„ç¾¤:%d\n", chatinfo.useridto);
+				Prtinf(0xd, "data---æ‰“æ‹›å‘¼:%s\n", chatinfo.info);
 			}
 			break;
-		case COMMAND_DELGROUND:/*ÍË³öÈºÁÄ*/
+		case COMMAND_DELGROUND:/*é€€å‡ºç¾¤èŠ*/
 			{
-				Prtinf(0x5, "%s---ÊÕµ½ÍË³öÈºÁÄÉêÇë£¡\n", GetCurTime().c_str());
+				Prtinf(0x5, "%s---æ”¶åˆ°é€€å‡ºç¾¤èŠç”³è¯·ï¼\n", GetCurTime().c_str());
 				CHATINFO chatinfo;
 				memcpy(&chatinfo, datapack.data, sizeof(chatinfo));
-				Prtinf(0xd, "data---ÉêÇëÈË:%d\n", chatinfo.useridfrom);
-				Prtinf(0xd, "data---ÒªÍË³öµÄÈº:%d\n", chatinfo.useridto);
-				Prtinf(0xd, "data---¼ÄÓï:%s\n", chatinfo.info);
+				Prtinf(0xd, "data---ç”³è¯·äºº:%d\n", chatinfo.useridfrom);
+				Prtinf(0xd, "data---è¦é€€å‡ºçš„ç¾¤:%d\n", chatinfo.useridto);
+				Prtinf(0xd, "data---å¯„è¯­:%s\n", chatinfo.info);
 			}
 			break;
-		case COMMAND_SINGLECHAT:/*µ¥ÁÄ*/
+		case COMMAND_SINGLECHAT:/*å•èŠ*/
 			{
-				Prtinf(0x5, "%s---ÊÕµ½µ¥ÁÄĞÅÏ¢£¡\n", GetCurTime().c_str());
+				Prtinf(0x5, "%s---Receipt of chat application!!\n", GetCurTime().c_str());
 				CommandReturn = std::bind(&CMSServer::CommandSingleChatReturn, this, std::placeholders::_1, std::placeholders::_2);
 			}
 			break;
-		case COMMAND_GROUPCHAT:/*ÈºÁÄ*/
+		case COMMAND_GROUPCHAT:/*ç¾¤èŠ*/
 			{
-				Prtinf(0x5, "%s---ÊÕµ½ÈºÁÄĞÅÏ¢£¡\n", GetCurTime().c_str());
+				Prtinf(0x5, "%s---æ”¶åˆ°ç¾¤èŠä¿¡æ¯!\n", GetCurTime().c_str());
 				CHATINFO chatinfo;
 				memcpy(&chatinfo, datapack.data, sizeof(chatinfo));
-				Prtinf(0xd, "data---·¢ËÍÈË:%d\n", chatinfo.useridfrom);
-				Prtinf(0xd, "data---½ÓÊÕÈº:%d\n", chatinfo.useridto);
-				Prtinf(0xd, "data---ĞÅÏ¢:%s\n", chatinfo.info);
+				Prtinf(0xd, "data---å‘é€äºº:%d\n", chatinfo.useridfrom);
+				Prtinf(0xd, "data---æ¥æ”¶ç¾¤:%d\n", chatinfo.useridto);
+				Prtinf(0xd, "data---ä¿¡æ¯:%s\n", chatinfo.info);
 			}
 			break;
-		case COMMAND_FRIENDINFO:/*ÈºÁÄ*/
+		case COMMAND_FRIENDINFO:/*å¥½å‹ä¿¡æ¯*/
 			{
-				Prtinf(0x5, "%s---ÊÕµ½»ñÈ¡ºÃÓÑĞÅÏ¢ÉêÇë£¡\n", GetCurTime().c_str());
+				Prtinf(0x5, "%s---Receipt of friend info application!!\n", GetCurTime().c_str());
 				CommandReturn = std::bind(&CMSServer::CommandFriendInfoReturn, this, std::placeholders::_1, std::placeholders::_2);
 			}
 			break;
@@ -382,22 +382,22 @@ void CMSServer::SendDataPackReturn(int socket, COMMANDTYPE type, RESULT result, 
 	resultinfo.result = result;
 	memcpy(resultinfo.resultinfo, (char*)data, size);
 
-	/*´ò°ü½á¹û*/
+	/*æ‰“åŒ…ç»“æœ*/
 	datapack.commandtype = type;
 	datapack.datatype = RESULT_RETURN;
 	memcpy(datapack.data, &resultinfo, sizeof(RESULTINFO_RETURN));
 
-	/*·¢ËÍ½á¹û*/
+	/*å‘é€ç»“æœ*/
 	char *buff = new char[sizeof(DATA_PACK)];
 	memset(buff, 0, sizeof(DATA_PACK));
 	memcpy(buff, &datapack, sizeof(DATA_PACK));
 	if (0 != _socket->send_skt(socket, (char*)buff, sizeof(DATA_PACK)))
 	{
-		Prtinf(0x8, "log---ÃüÁî%d»Ø¸´Ê§°Ü\n", type);
+		Prtinf(0x8, "log---Command:%d Reply failed\n", type);
 	}
 	else
 	{
-		Prtinf(0x8, "log---ÃüÁî%d»Ø¸´³É¹¦\n",type);
+		Prtinf(0x8, "log---Command:%d Reply successfully\n",type);
 	}
 	delete[] buff;
 }
@@ -405,7 +405,7 @@ void CMSServer::SendDataPackReturn(int socket, COMMANDTYPE type, RESULT result, 
 bool CMSServer::SendDataPack(int socket, DATA_PACK *datapack)
 {
 	bool result = false;
-	/*·¢ËÍ½á¹û*/
+	/*å‘é€ç»“æœ*/
 	char *buff = new char[sizeof(DATA_PACK)];
 	memset(buff, 0, sizeof(DATA_PACK));
 	memcpy(buff, datapack, sizeof(DATA_PACK));
@@ -422,19 +422,19 @@ void CMSServer::CommandSiginReturn(int socket, DATA_PACK *datapack)
 {
 	SIGIN_INFO sigininfo;
 	memcpy(&sigininfo, datapack->data, sizeof(SIGIN_INFO));
-	Prtinf(0xd, "data---êÇ³Æ:%s\n", sigininfo.nickname);
-	Prtinf(0xd, "data---ÕË»§:%d\n", sigininfo.userid);
-	Prtinf(0xd, "data---ÃÜÂë:%s\n", sigininfo.password);
-	Prtinf(0xd, "data---Ç©Ãû:%s\n", sigininfo.userdescription);
+	Prtinf(0xd, "data---nickname:%s\n", sigininfo.nickname);
+	Prtinf(0xd, "data---Account:%d\n", sigininfo.userid);
+	Prtinf(0xd, "data---Password:%s\n", sigininfo.password);
+	Prtinf(0xd, "data---Signature:%s\n", sigininfo.userdescription);
 
-	/*Ğ£Ñé×¢²áĞÅÏ¢*/
+	/*æ ¡éªŒæ³¨å†Œä¿¡æ¯*/
 	int usersize = 0;
 	bool result = true;
 	std::string errorinfo = "";
 	if (sigininfo.userid < 99999 || sigininfo.userid >999999999)
 	{
 		result = false;
-		errorinfo = "ÕËºÅ²»·ûºÏ¹æ¶¨";
+		errorinfo = "è´¦å·ä¸ç¬¦åˆè§„å®š";
 		goto LLL;
 	}
 
@@ -456,11 +456,11 @@ void CMSServer::CommandSiginReturn(int socket, DATA_PACK *datapack)
 	}
 	if (!result)
 	{
-		errorinfo = "¸ÃÕËºÅÒÑ¾­×¢²á£¬ÇëÖ±½ÓµÇÂ¼";
+		errorinfo = "è¯¥è´¦å·å·²ç»æ³¨å†Œï¼Œè¯·ç›´æ¥ç™»å½•";
 		goto LLL;
 	}
 	
-	/*Ğ´Èë×¢²áĞÅÏ¢*/
+	/*å†™å…¥æ³¨å†Œä¿¡æ¯*/
 	{
 		neb::CJsonObject oJson;
 		oJson.Add("nickname", sigininfo.nickname);
@@ -475,19 +475,19 @@ void CMSServer::CommandSiginReturn(int socket, DATA_PACK *datapack)
 	}
 	
 LLL:
-	/*´ò°ü½á¹û*/
+	/*æ‰“åŒ…ç»“æœ*/
 	int datasize = 0;
 	void* data = nullptr;;
 	if (result)
 	{
 		data = nullptr;
-		Prtinf(0x8, "log---×¢²á³É¹¦\n");
+		Prtinf(0x8, "log---Sigin successfully\n");
 	}
 	else
 	{
 		data = (void*)errorinfo.c_str();
 		datasize = errorinfo.length();
-		Prtinf(0x8, "log---×¢²áÊ§°ÜÊ§°Ü ´íÎóĞÅÏ¢:%s\n", data);
+		Prtinf(0x8, "log---Sigin failed error info:%s\n", data);
 	}
 
 	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
@@ -497,17 +497,17 @@ void CMSServer::CommandSigoutReturn(int socket, DATA_PACK *datapack)
 {
 	USER_INFO userinfo;
 	memcpy(&userinfo, datapack->data, sizeof(USER_INFO));
-	Prtinf(0xd, "data---ÕË»§:%d\n", userinfo.userid);
-	Prtinf(0xd, "data---ÃÜÂë:%s\n", userinfo.password);
+	Prtinf(0xd, "data---Account:%d\n", userinfo.userid);
+	Prtinf(0xd, "data---Password:%s\n", userinfo.password);
 	
-	/*Ğ£ÑéµÇÂ¼ĞÅÏ¢*/
+	/*æ ¡éªŒç™»å½•ä¿¡æ¯*/
 	int usersize = 0;
 	std::string stpassword = userinfo.password;
 	bool result = false;
 	std::string errorinfo = "";
 	if (!_mapUserOnline.count(userinfo.userid))
 	{
-		errorinfo = "¸ÃÕË»§ÉĞÎ´µÇÂ½";
+		errorinfo = "è¯¥è´¦æˆ·å°šæœªç™»é™†";
 		goto LLL;
 	}
 	
@@ -532,29 +532,29 @@ void CMSServer::CommandSigoutReturn(int socket, DATA_PACK *datapack)
 			}
 			else
 			{
-				errorinfo = "ÃÜÂë´íÎó";
+				errorinfo = "å¯†ç é”™è¯¯";
 			}
 		}
 	}
 	if (errorinfo.empty() && !result)
 	{
-		errorinfo = "¸ÃÓÃ»§ÉĞÎ´×¢²á";
+		errorinfo = "è¯¥ç”¨æˆ·å°šæœªæ³¨å†Œ";
 	}
 	
 LLL:
-	/*´ò°ü½á¹û*/
+	/*æ‰“åŒ…ç»“æœ*/
 	int datasize = 0;
 	void* data = nullptr;
 	if (result)
 	{
 		data = nullptr;
-		Prtinf(0x8, "log---×¢Ïú³É¹¦\n");
+		Prtinf(0x8, "log---Sigout successfully\n");
 	}
 	else
 	{
 		data = (void*)errorinfo.c_str();
 		datasize = errorinfo.length();
-		Prtinf(0x8, "log---×¢ÏúÊ§°Ü ´íÎóĞÅÏ¢:%s\n", data);
+		Prtinf(0x8, "log---Sigout failed error info:%s\n", data);
 	}
 
 	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
@@ -564,10 +564,10 @@ void CMSServer::CommandLoginReturn(int socket, DATA_PACK *datapack)
 {
 	USER_INFO userinfo;
 	memcpy(&userinfo, datapack->data, sizeof(USER_INFO));
-	Prtinf(0xd, "data---ÕË»§:%d\n", userinfo.userid);
-	Prtinf(0xd, "data---ÃÜÂë:%s\n", userinfo.password);
+	Prtinf(0xd, "data---Account:%d\n", userinfo.userid);
+	Prtinf(0xd, "data---Password:%s\n", userinfo.password);
 	
-	/*Ğ£ÑéµÇÂ¼ĞÅÏ¢*/	
+	/*æ ¡éªŒç™»å½•ä¿¡æ¯*/	
 	int usersize = 0;
 	USERINFO_RETURN userinfo_return;
 	std::string stpassword = userinfo.password;
@@ -575,7 +575,7 @@ void CMSServer::CommandLoginReturn(int socket, DATA_PACK *datapack)
 	std::string errorinfo = "";
 	if (_mapUserOnline.count(userinfo.userid))
 	{
-		errorinfo = "¸ÃÕË»§ÒÑ¾­µÇÂ½";
+		errorinfo = "è¯¥è´¦æˆ·å·²ç»ç™»é™†";
 		goto LLL;
 	}
 
@@ -593,7 +593,7 @@ void CMSServer::CommandLoginReturn(int socket, DATA_PACK *datapack)
 		{
 			if (stpassword == password)
 			{
-				/*»ñÈ¡²¢´ò°üÓÃ»§ĞÅÏ¢*/
+				/*è·å–å¹¶æ‰“åŒ…ç”¨æˆ·ä¿¡æ¯*/
 				std::string nickname, description;
 				oJson.Get("nickname", nickname);
 				oJson.Get("description", description);
@@ -606,30 +606,30 @@ void CMSServer::CommandLoginReturn(int socket, DATA_PACK *datapack)
 			}
 			else
 			{
-				errorinfo = "ÃÜÂë´íÎó";
+				errorinfo = "å¯†ç é”™è¯¯";
 				break;
 			}
 		}
 	}
 	if (errorinfo.empty() && !result)
 	{
-		errorinfo = "¸ÃÓÃ»§ÉĞÎ´×¢²á";
+		errorinfo = "è¯¥ç”¨æˆ·å°šæœªæ³¨å†Œ";
 	}
 LLL:
-	/*´ò°ü½á¹û*/
+	/*æ‰“åŒ…ç»“æœ*/
 	int datasize = 0;
 	void* data = nullptr;
 	if (result)
 	{
 		data = &userinfo_return;
 		datasize = sizeof(USERINFO_RETURN);
-		Prtinf(0x8, "log---µÇÂ¼³É¹¦\n");
+		Prtinf(0x8, "log---Login successfully\n");
 	}
 	else
 	{
 		data = (void*)errorinfo.c_str();
 		datasize = errorinfo.length();
-		Prtinf(0x8, "log---µÇÂ¼Ê§°Ü ´íÎóĞÅÏ¢:%s\n", data);
+		Prtinf(0x8, "log---Login failed error info:%s\n", data);
 	}
 
 	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
@@ -639,10 +639,10 @@ void CMSServer::CommandLogoutReturn(int socket, DATA_PACK *datapack)
 {
 	USER_INFO userinfo;
 	memcpy(&userinfo, datapack->data, sizeof(USER_INFO));
-	Prtinf(0xd, "data---ÕË»§:%d\n", userinfo.userid);
-	Prtinf(0xd, "data---ÃÜÂë:%s\n", userinfo.password);
+	Prtinf(0xd, "data---Account:%d\n", userinfo.userid);
+	Prtinf(0xd, "data---Password:%s\n", userinfo.password);
 
-	/*Ğ£ÑéµÇÂ¼ĞÅÏ¢*/
+	/*æ ¡éªŒç™»å½•ä¿¡æ¯*/
 	bool result = false;
 	std::string errorinfo = "";
 	if (_mapUserOnline.count(userinfo.userid))
@@ -652,25 +652,25 @@ void CMSServer::CommandLogoutReturn(int socket, DATA_PACK *datapack)
 	}
 	else
 	{
-		errorinfo = "¸ÃÓÃ»§Î´µÇÂ¼";
+		errorinfo = "è¯¥ç”¨æˆ·æœªç™»å½•";
 		goto LLL;
 	}
 
 LLL:
-	/*´ò°ü½á¹û*/
+	/*æ‰“åŒ…ç»“æœ*/
 	int datasize = 0;
 	void* data = nullptr;
 	if (result)
 	{
 		data = nullptr;
 		datasize = 0;
-		Prtinf(0x8, "log---ÍË³öµÇÂ¼³É¹¦\n");
+		Prtinf(0x8, "log---Logout successfully\n");
 	}
 	else
 	{
 		data = (void*)errorinfo.c_str();
 		datasize = errorinfo.length();
-		Prtinf(0x8, "log---ÍË³öµÇÂ¼Ê§°Ü ´íÎóĞÅÏ¢:%s\n", data);
+		Prtinf(0x8, "log---Logout failed error info:%s\n", data);
 	}
 
 	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
@@ -681,11 +681,11 @@ void CMSServer::CommandAddFriendReturn(int socket, DATA_PACK *datapack)
 {
 	FRIEND_INFO friend_info;
 	memcpy(&friend_info, datapack->data, sizeof(FRIEND_INFO));
-	Prtinf(0xd, "data---ÉêÇëÈË:%d\n", friend_info.userid);
-	Prtinf(0xd, "data---ÒªÌí¼ÓµÄºÃÓÑ:%d\n", friend_info.friendid);
-	Prtinf(0xd, "data---´òÕĞºô:%s\n", friend_info.info);
+	Prtinf(0xd, "data---Account:%d\n", friend_info.userid);
+	Prtinf(0xd, "data---Friend:%d\n", friend_info.friendid);
+	Prtinf(0xd, "data---Info:%s\n", friend_info.info);
 
-	/*Ğ£ÑéºÃÓÑĞÅÏ¢*/
+	/*æ ¡éªŒå¥½å‹ä¿¡æ¯*/
 	int usersize = 0;
 	FRIENDINFO_RETURN friendinfo;
 	bool result = false;
@@ -693,11 +693,11 @@ void CMSServer::CommandAddFriendReturn(int socket, DATA_PACK *datapack)
 
 	if (friend_info.userid == friend_info.friendid)
 	{
-		errorinfo = "ÎŞ·¨Ìí¼Ó×Ô¼º";
+		errorinfo = "æ— æ³•æ·»åŠ è‡ªå·±";
 		goto LLL;
 	}
 
-	/*²éÕÒÌí¼ÓµÄºÃÓÑÊÇ·ñ×¢²á*/
+	/*æŸ¥æ‰¾æ·»åŠ çš„å¥½å‹æ˜¯å¦æ³¨å†Œ*/
 	usersize= _oJsonuserinfo["userinfo"].GetArraySize();
 	for (int i = 0; i < usersize; ++i)
 	{
@@ -707,7 +707,7 @@ void CMSServer::CommandAddFriendReturn(int socket, DATA_PACK *datapack)
 		oJson.Get("userid", userid);
 		if (friend_info.friendid == userid)
 		{
-			/*»ñÈ¡Ìí¼ÓµÄºÃÓÑĞÅÏ¢*/
+			/*è·å–æ·»åŠ çš„å¥½å‹ä¿¡æ¯*/
 			friendinfo.friendid = friend_info.friendid;
 			std::string nickname, description;
 			oJson.Get("nickname", nickname);
@@ -722,7 +722,7 @@ void CMSServer::CommandAddFriendReturn(int socket, DATA_PACK *datapack)
 		
 	if (!result)
 	{
-		errorinfo = "¸ÃÓÃ»§ÉĞÎ´×¢²á";
+		errorinfo = "è¯¥ç”¨æˆ·å°šæœªæ³¨å†Œ";
 		goto LLL;
 	}
 
@@ -734,7 +734,7 @@ void CMSServer::CommandAddFriendReturn(int socket, DATA_PACK *datapack)
 		oJson.Get("userid", userid);
 		if (friend_info.userid == userid)
 		{
-			/*¼ì²éºÃÓÑÊÇ·ñÒÑ¾­´æÔÚ*/
+			/*æ£€æŸ¥å¥½å‹æ˜¯å¦å·²ç»å­˜åœ¨*/
 			int sz = oJson["friend"].GetArraySize();
 			for (int j = 0; j < sz; j++)
 			{
@@ -748,7 +748,7 @@ void CMSServer::CommandAddFriendReturn(int socket, DATA_PACK *datapack)
 			}
 			if (result)
 			{
-				//todo Ìí¼ÓºÃÓÑÕâ¸ö¹¦ÄÜĞèÒª¸ÄÎª¶Ô·½Í¬ÒâµÄ»úÖÆ
+				//todo æ·»åŠ å¥½å‹è¿™ä¸ªåŠŸèƒ½éœ€è¦æ”¹ä¸ºå¯¹æ–¹åŒæ„çš„æœºåˆ¶
 				oJson["friend"].Add(friend_info.friendid);
 				_oJsonuserinfo["userinfo"].Replace(i, oJson);
 				SaveUserInfoJson();
@@ -757,38 +757,38 @@ void CMSServer::CommandAddFriendReturn(int socket, DATA_PACK *datapack)
 			}
 			else
 			{
-				errorinfo = "ºÃÓÑÒÑÌí¼Ó¹ı";
+				errorinfo = "å¥½å‹å·²æ·»åŠ è¿‡";
 			}
 			break;
 		}
 	}
 	if (errorinfo.empty() && !result)
 	{
-		errorinfo = "µ±Ç°ÓÃ»§Î´×¢²á";
+		errorinfo = "å½“å‰ç”¨æˆ·æœªæ³¨å†Œ";
 	}
 
 	//int sock = _mapUserOnline[friend_info.friendid];
 
 	//if (!SendDataPack(sock, datapack))
-	//	errorinfo = "ĞÅÏ¢·¢ËÍÊ§°Ü";
+	//	errorinfo = "ä¿¡æ¯å‘é€failed";
 	//else
 	//	result = true;
 
 LLL:
-	/*´ò°ü½á¹û*/
+	/*æ‰“åŒ…ç»“æœ*/
 	int datasize = 0;
 	void* data = nullptr;
 	if (result)
 	{
 		data = &friendinfo;
 		datasize = sizeof(FRIENDINFO_RETURN);
-		Prtinf(0x8, "log---µÇÂ¼³É¹¦\n");
+		Prtinf(0x8, "log---Add friend successfully\n");
 	}
 	else
 	{
 		data = (void*)errorinfo.c_str();
 		datasize = errorinfo.length();
-		Prtinf(0x8, "log---µÇÂ¼Ê§°Ü ´íÎóĞÅÏ¢:%s\n", data);
+		Prtinf(0x8, "log---Add friend failed error info:%s\n", data);
 	}
 
 	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
@@ -798,24 +798,24 @@ void CMSServer::CommandDelFriendReturn(int socket, DATA_PACK *datapack)
 {
 	FRIEND_INFO friendinfo;
 	memcpy(&friendinfo, datapack->data, sizeof(FRIEND_INFO));
-	Prtinf(0xd, "data---ÉêÇëÈË:%d\n", friendinfo.userid);
-	Prtinf(0xd, "data---ÒªÉ¾³ıµÄºÃÓÑ:%d\n", friendinfo.friendid);
-	Prtinf(0xd, "data---¼ÄÓï:%s\n", friendinfo.info);
+	Prtinf(0xd, "data---Acconunt:%d\n", friendinfo.userid);
+	Prtinf(0xd, "data---Friend:%d\n", friendinfo.friendid);
+	Prtinf(0xd, "data---Info:%s\n", friendinfo.info);
 
-	/*Ğ£ÑéºÃÓÑĞÅÏ¢*/
+	/*æ ¡éªŒå¥½å‹ä¿¡æ¯*/
 	int usersize = 0;
 	bool result = false;
 	std::string errorinfo = "";
 
 	if (!_mapUserOnline.count(friendinfo.userid))
 	{
-		errorinfo = "ÓÃ»§Î´µÇÂ¼";
+		errorinfo = "ç”¨æˆ·æœªç™»å½•";
 		goto LLL;
 	}
 
 	if (friendinfo.userid == friendinfo.friendid)
 	{
-		errorinfo = "ÎŞ·¨É¾³ı×Ô¼º";
+		errorinfo = "æ— æ³•åˆ é™¤è‡ªå·±";
 		goto LLL;
 	}
 
@@ -844,31 +844,31 @@ void CMSServer::CommandDelFriendReturn(int socket, DATA_PACK *datapack)
 			}
 			if (!result)
 			{
-				errorinfo = "ÄãÃ»ÓĞ¸ÃºÃÓÑ";
+				errorinfo = "ä½ æ²¡æœ‰è¯¥å¥½å‹";
 			}
 			break;
 		}
 	}
 	if (errorinfo.empty() && !result)
 	{
-		errorinfo = "µ±Ç°ÓÃ»§ÉĞÎ´×¢²á";
+		errorinfo = "å½“å‰ç”¨æˆ·å°šæœªæ³¨å†Œ";
 	}
 
 LLL:
-	/*´ò°ü½á¹û*/
+	/*æ‰“åŒ…ç»“æœ*/
 	int datasize = 0;
 	void* data = nullptr;
 	if (result)
 	{
 		data = nullptr;
 		datasize = 0;
-		Prtinf(0x8, "log---É¾³ıºÃÓÑ³É¹¦\n");
+		Prtinf(0x8, "log---Del friend successfully\n");
 	}
 	else
 	{
 		data = (void*)errorinfo.c_str();
 		datasize = errorinfo.length();
-		Prtinf(0x8, "log---É¾³ıºÃÓÑÊ§°Ü ´íÎóĞÅÏ¢:%s\n", data);
+		Prtinf(0x8, "log---Del friend failed error info:%s\n", data);
 	}
 
 	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
@@ -882,9 +882,9 @@ void CMSServer::CommandSingleChatReturn(int socket, DATA_PACK *datapack)
 	{
 		CHATINFO chatinfo;
 		memcpy(&chatinfo, datapack->data, sizeof(chatinfo));
-		Prtinf(0xd, "data---·¢ËÍÈË:%d\n", chatinfo.useridfrom);
-		Prtinf(0xd, "data---½ÓÊÕÈË:%d\n", chatinfo.useridto);
-		Prtinf(0xd, "data---ĞÅÏ¢:%s\n", chatinfo.info);
+		Prtinf(0xd, "data---Sender%d\n", chatinfo.useridfrom);
+		Prtinf(0xd, "data---Receiver:%d\n", chatinfo.useridto);
+		Prtinf(0xd, "data---Message:%s\n", chatinfo.info);
 
 		userid = chatinfo.useridfrom;
 		friendid = chatinfo.useridto;
@@ -894,8 +894,8 @@ void CMSServer::CommandSingleChatReturn(int socket, DATA_PACK *datapack)
 	{
 		OSSFILEINFO fileinfo;
 		memcpy(&fileinfo, datapack->data, sizeof(fileinfo));
-		Prtinf(0xd, "data---·¢ËÍÈË:%d\n", fileinfo.useridfrom);
-		Prtinf(0xd, "data---½ÓÊÕÈË:%d\n", fileinfo.useridto);
+		Prtinf(0xd, "data---Sender:%d\n", fileinfo.useridfrom);
+		Prtinf(0xd, "data---Receiver:%d\n", fileinfo.useridto);
 		Prtinf(0xd, "data---bucket:%s\n", fileinfo.bucket);
 		Prtinf(0xd, "data---object:%s\n", fileinfo.object);
 
@@ -932,7 +932,7 @@ void CMSServer::CommandSingleChatReturn(int socket, DATA_PACK *datapack)
 			}
 			if (!result)
 			{
-				errorinfo = "Äã»¹²»ÊÇ¶Ô·½µÄºÃÓÑ";
+				errorinfo = "ä½ è¿˜ä¸æ˜¯å¯¹æ–¹çš„å¥½å‹";
 			}
 			friendexit = true;
 			break;
@@ -940,13 +940,13 @@ void CMSServer::CommandSingleChatReturn(int socket, DATA_PACK *datapack)
 	}
 	if (!friendexit)
 	{
-		errorinfo = "¶Ô·½ÒÑ¾­×¢ÏúÕËºÅ";
+		errorinfo = "å¯¹æ–¹å·²ç»æ³¨é”€è´¦å·";
 		goto LLL;
 	}
 
 	if (!_mapUserOnline.count(friendid))
 	{
-		errorinfo = "ºÃÓÑÎ´µÇÂ¼,ĞÅÏ¢½«»º´æ£¬ÔÚºÃÓÑÉÏÏßºó·¢ËÍ";
+		errorinfo = "å¥½å‹æœªç™»å½•,ä¿¡æ¯å°†ç¼“å­˜ï¼Œåœ¨å¥½å‹ä¸Šçº¿åå‘é€";
 
 		int datasize = 0;
 		if (datapack->datatype == CHAT_TEXT)
@@ -960,26 +960,26 @@ void CMSServer::CommandSingleChatReturn(int socket, DATA_PACK *datapack)
 	else
 	{
 		if (!SendDataPack(_mapUserOnline[friendid], datapack))
-			errorinfo = "ĞÅÏ¢·¢ËÍÊ§°Ü";
+			errorinfo = "ä¿¡æ¯å‘é€å¤±è´¥";
 		else
 			result = true;
 	}
 
 LLL:
-	/*´ò°ü½á¹û*/
+	/*æ‰“åŒ…ç»“æœ*/
 	int datasize = 0;
 	void* data = nullptr;
 	if (result)
 	{
 		data = nullptr;
 		datasize = 0;
-		Prtinf(0x8, "log---·¢ËÍÁÄÌìĞÅÏ¢³É¹¦\n");
+		Prtinf(0x8, "log---Send chatinfo successfully\n");
 	}
 	else
 	{
 		data = (void*)errorinfo.c_str();
 		datasize = errorinfo.length();
-		Prtinf(0x8, "log---·¢ËÍÁÄÌìĞÅÏ¢Ê§°Ü ´íÎóĞÅÏ¢:%s\n", data);
+		Prtinf(0x8, "log---Send chatinfo failed error info:%s\n", data);
 	}
 
 	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
@@ -989,21 +989,21 @@ void CMSServer::CommandFriendInfoReturn(int socket, DATA_PACK *datapack)
 {
 	USER_INFO userinfo;
 	memcpy(&userinfo, datapack->data, sizeof(USER_INFO));
-	Prtinf(0xd, "data---ÕË»§:%d\n", userinfo.userid);
-	Prtinf(0xd, "data---ÃÜÂë:%s\n", userinfo.password);
+	Prtinf(0xd, "data---Account:%d\n", userinfo.userid);
+	Prtinf(0xd, "data---Password:%s\n", userinfo.password);
 
 	int usersize = 0;
 	bool result = false;
 	std::string errorinfo = "";
 	if (!_mapUserOnline.count(userinfo.userid))
 	{
-		errorinfo = "ÓÃ»§Î´µÇÂ¼";
+		errorinfo = "ç”¨æˆ·æœªç™»å½•";
 		goto LLL;
 	}
 
 	ALLRIENDINFO_RETURN friendinfo;
 	friendinfo.isonline &= 0x0;
-	/*»ñÈ¡ºÃÓÑÁĞ±í*/
+	/*è·å–å¥½å‹åˆ—è¡¨*/
 	usersize = _oJsonuserinfo["userinfo"].GetArraySize();
 	for (int i = 0; i < usersize; ++i)
 	{
@@ -1024,7 +1024,7 @@ void CMSServer::CommandFriendInfoReturn(int socket, DATA_PACK *datapack)
 		}
 	}
 
-	/*»ñÈ¡ºÃÓÑĞÅÏ¢*/
+	/*è·å–å¥½å‹ä¿¡æ¯*/
 	for (int i = 0; i < usersize; ++i)
 	{
 		neb::CJsonObject oJson;
@@ -1046,20 +1046,20 @@ void CMSServer::CommandFriendInfoReturn(int socket, DATA_PACK *datapack)
 	}
 
 LLL:
-	/*´ò°ü½á¹û*/
+	/*æ‰“åŒ…ç»“æœ*/
 	int datasize = 0;
 	void* data = nullptr;
 	if (result)
 	{
 		data = &friendinfo;
 		datasize = sizeof(ALLRIENDINFO_RETURN);
-		Prtinf(0x8, "log---»ñÈ¡ºÃÓÑ³É¹¦\n");
+		Prtinf(0x8, "log---Get frined info successfully\n");
 	}
 	else
 	{
 		data = (void*)errorinfo.c_str();
 		datasize = errorinfo.length();
-		Prtinf(0x8, "log---»ñÈ¡ºÃÓÑÊ§°Ü ´íÎóĞÅÏ¢:%s\n", data);
+		Prtinf(0x8, "log---Get fiend infofailed error info:%s\n", data);
 	}
 
 	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
@@ -1109,10 +1109,10 @@ void CMSServer::SaveCacheInfo(void* data, int size)
 	}
 
 
-	/*»º´æÎÄ¼şjson*/
+	/*ç¼“å­˜æ–‡ä»¶json*/
 	neb::CJsonObject cachejson;
 
-	/*»ñÈ¡¿ÉÖ´ĞĞÎÄ¼şÄ¿Â¼*/
+	/*è·å–å¯æ‰§è¡Œæ–‡ä»¶ç›®å½•*/
 	std::string strexe = GetExePath();
 
 	char cachefile[254];
@@ -1120,7 +1120,7 @@ void CMSServer::SaveCacheInfo(void* data, int size)
 
 	if (access(cachefile, 6) != 0)
 	{
-		/*´´½¨UserÄ¿Â¼*/
+		/*åˆ›å»ºUserç›®å½•*/
 		std::string userpath = strexe + "/User";
 		if (access(userpath.c_str(), 0) != 0)
 		{
@@ -1130,7 +1130,7 @@ void CMSServer::SaveCacheInfo(void* data, int size)
 			mkdir(userpath.c_str());
 #endif
 		}
-		/*´´½¨ÓÃ»§IDÄ¿Â¼*/
+		/*åˆ›å»ºç”¨æˆ·IDç›®å½•*/
 		char useridpath[254];
 		sprintf(useridpath, "%s/%d", userpath.c_str(), friendid);
 		if (access(useridpath, 0) != 0)
@@ -1142,7 +1142,7 @@ void CMSServer::SaveCacheInfo(void* data, int size)
 #endif
 		}
 
-		/*´´½¨cachejson*/
+		/*åˆ›å»ºcachejson*/
 		char struserid[16];
 		snprintf(struserid, sizeof(struserid), "%d", userid);
 
@@ -1167,7 +1167,7 @@ void CMSServer::SaveCacheInfo(void* data, int size)
 		}
 		cachejson.Add(struserid, friendinfo);
 
-		/*Ğ´ÈëÎÄ¼ş*/
+		/*å†™å…¥æ–‡ä»¶*/
 		std::string strjson = cachejson.ToFormattedString();
 		std::shared_ptr<std::iostream> content = std::make_shared<std::fstream>(cachefile, std::ios::out);
 		*content << strjson;
@@ -1175,7 +1175,7 @@ void CMSServer::SaveCacheInfo(void* data, int size)
 	}
 	else
 	{
-		/*¶ÁÈ¡cachejson*/
+		/*è¯»å–cachejson*/
 		std::shared_ptr<std::iostream> contentread = std::make_shared<std::fstream>(cachefile, std::ios::in);
 		std::string strjson;
 		std::string strtemp;
@@ -1184,7 +1184,7 @@ void CMSServer::SaveCacheInfo(void* data, int size)
 		}
 		cachejson.Parse(strjson);
 
-		/*ĞŞ¸Äcachejson*/
+		/*ä¿®æ”¹cachejson*/
 		neb::CJsonObject friendinfo;
 		char struserid[16];
 		snprintf(struserid, sizeof(struserid), "%d", userid);
@@ -1208,7 +1208,7 @@ void CMSServer::SaveCacheInfo(void* data, int size)
 		}
 		cachejson.Replace(struserid, friendinfo);
 
-		/*Ğ´ÈëÎÄ¼ş*/
+		/*å†™å…¥æ–‡ä»¶*/
 		strjson = cachejson.ToFormattedString();
 		std::shared_ptr<std::iostream> content = std::make_shared<std::fstream>(cachefile, std::ios::out);
 		*content << strjson;
@@ -1217,17 +1217,17 @@ void CMSServer::SaveCacheInfo(void* data, int size)
 
 void CMSServer::SenCacheInfo(unsigned int userid)
 {
-	/*»ñÈ¡¿ÉÖ´ĞĞÎÄ¼şÄ¿Â¼*/
+	/*è·å–å¯æ‰§è¡Œæ–‡ä»¶ç›®å½•*/
 	std::string strexe = GetExePath();
 	char cachefile[254];
 	sprintf(cachefile, "%s/User/%d/cachefile.json", strexe.c_str(), userid);
 
 	if (access(cachefile, 6) == 0)
 	{
-		/*»º´æÎÄ¼şjson*/
+		/*ç¼“å­˜æ–‡ä»¶json*/
 		neb::CJsonObject cachejson;
 
-		/*¶ÁÈ¡»º´æÎÄ¼ş*/
+		/*è¯»å–ç¼“å­˜æ–‡ä»¶*/
 		std::shared_ptr<std::iostream> contentread = std::make_shared<std::fstream>(cachefile, std::ios::in);
 		std::string strjson;
 		std::string strtemp;
@@ -1317,15 +1317,15 @@ void CMSServer::SenCacheInfo(unsigned int userid)
 
 void CMSServer::LoginStateNotify(int state,unsigned int userid)
 {
-	Prtinf(0x8, "log---Í¨ÖªºÃÓÑ%sÏß\n", state == COMMAND_LOGIN ? "ÉÏ" : "ÏÂ");
+	Prtinf(0x8, "log---Notify friends to go %s\n", state == COMMAND_LOGIN ? "online" : "offline");
 
 	DATA_PACK datapack;
 	memset(&datapack, 0, sizeof(DATA_PACK));
-	/*´ò°ü½á¹û*/
+	/*æ‰“åŒ…ç»“æœ*/
 	datapack.commandtype = COMMANDTYPE(state);
 	datapack.datatype = NOTIFY_INFO;
 
-	/*Í¨ÖªºÃÓÑ×Ô¼ºÏÂÏßĞÅÏ¢*/
+	/*é€šçŸ¥å¥½å‹è‡ªå·±ä¸‹çº¿ä¿¡æ¯*/
 	int size = _oJsonuserinfo["userinfo"].GetArraySize();
 	for (int i = 0; i < size; ++i)
 	{
@@ -1338,7 +1338,7 @@ void CMSServer::LoginStateNotify(int state,unsigned int userid)
 
 		if (userid == nuserid)
 		{
-			/*´ò°ü×Ô¼ºµÄĞÅÏ¢*/
+			/*æ‰“åŒ…è‡ªå·±çš„ä¿¡æ¯*/
 			FRIENDINFO_RETURN friendinfo;
 			std::string nickname, description;
 			oJson.Get("nickname", nickname);
@@ -1348,7 +1348,7 @@ void CMSServer::LoginStateNotify(int state,unsigned int userid)
 			strcpy(friendinfo.userdescription, description.c_str());
 			memcpy(datapack.data, &friendinfo, sizeof(RESULTINFO_RETURN));
 
-			/*·¢ËÍ¸øºÃÓÑ*/
+			/*å‘é€ç»™å¥½å‹*/
 			int sz = oJson["friend"].GetArraySize();
 			for (int j = 0; j < sz; j++)
 			{

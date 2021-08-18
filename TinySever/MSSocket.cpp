@@ -1,4 +1,4 @@
-#include "MSSocket.h"
+ï»¿#include "MSSocket.h"
 #include <stdio.h>
 #include <string.h>
 #include <thread>
@@ -24,6 +24,7 @@
 #include <winsock2.h>  
 #pragma comment(lib,"ws2_32.lib") 
 #define WOULDBLOCK  WSAEWOULDBLOCK
+#define socklen_t int
 #endif
 
 std::mutex g_mutex;
@@ -142,7 +143,7 @@ void CMSSocket::close_skt(int s)
 
 void CMSSocket::clientclose(int s)
 {
-	/* ¹Ø±Õ·¢ËÍºÍ½ÓÊÕ²Ù×÷ */
+	/* å…³é—­å‘é€å’Œæ¥æ”¶æ“ä½œ */
 	shutdown(s, SD_BOTH);
 	close_skt(s);
 	delclientsock(s);
@@ -200,7 +201,7 @@ bool CMSSocket::connect_skt(int s, std::string addr, int port)
 
 	if (lAddr == INADDR_NONE)
 	{
-		hostent *h = gethostbyname(addr.c_str());/*²é¿´ÊÇ·ñÊÇÓòÃû*/
+		hostent *h = gethostbyname(addr.c_str());/*æŸ¥çœ‹æ˜¯å¦æ˜¯åŸŸå*/
 		if (h == NULL)
 			return false;
 		else
@@ -237,7 +238,7 @@ bool CMSSocket::listen_skt(int s, std::string addr, int port)
 			lAddr = *((unsigned long *)(h->h_addr));
 	}
 
-	/*ÔÊĞíÖØÓÃ±¾µØµØÖ·ºÍ¶Ë¿Ú*/
+	/*å…è®¸é‡ç”¨æœ¬åœ°åœ°å€å’Œç«¯å£*/
 	int breuseaddr = 1;
 	setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (const char*)&breuseaddr, sizeof(int));
 
@@ -271,12 +272,8 @@ void CMSSocket::accpet_skt(int s)
 	int addrlen = sizeof(sockAddr);
 	while (true)
 	{
-		/* ¶ÂÈû£¬µÈ´ı¿Í»§¶ËÁ¬½Ó */
-#ifdef __linux__
+		/*å µå¡ï¼Œç­‰å¾…å®¢æˆ·ç«¯è¿æ¥*/
 		int sockfd = accept(s, (struct sockaddr *)&sockAddr, (socklen_t *)&addrlen);
-#elif  defined(_WIN32)
-		int sockfd = accept(s, (struct sockaddr *)&sockAddr, &addrlen);
-#endif
 		if (sockfd == INVALID_SOCKET)
 		{
 			break;
@@ -286,7 +283,7 @@ void CMSSocket::accpet_skt(int s)
 			/*
 			struct sockaddr_in clientAddr;
 			int clientAddrLen = sizeof(clientAddr);
-			//»ñÈ¡sockfd±íÊ¾µÄÁ¬½ÓÉÏµÄ±¾µØµØÖ·
+			//è·å–sockfdè¡¨ç¤ºçš„è¿æ¥ä¸Šçš„æœ¬åœ°åœ°å€
 			getsockname(sockfd, (struct sockaddr*)&clientAddr, &clientAddrLen);
 
 			int prot = ntohs(clientAddr.sin_port);
@@ -294,10 +291,10 @@ void CMSSocket::accpet_skt(int s)
 			std::string iP = inet_ntoa(sockAddr.sin_addr);
 			*/
 
-			/*Ìí¼Óµ½¿Í»§socketÁĞ±í*/
+			/*æ·»åŠ åˆ°å®¢æˆ·socketåˆ—è¡¨*/
 			addclientsock(sockfd);
 
-			/* Í¨Öª¶©ÔÄÕß */
+			/* é€šçŸ¥è®¢é˜…è€… */
 			setsocketevent(clientaccpet);
 			notify_observable(sockfd);
 
@@ -329,7 +326,7 @@ void CMSSocket::clientreceive_skt(int s)
 			std::shared_ptr<recvdata> recvda = std::make_shared<recvdata>(data);
 			_dataqueue.push(recvda);
 
-			/* Í¨Öª¶©ÔÄÕß */
+			/* é€šçŸ¥è®¢é˜…è€… */
 			if (datalen == DATAPACKETSIZE)
 				setsocketevent(clientrecv);
 			else
@@ -338,7 +335,7 @@ void CMSSocket::clientreceive_skt(int s)
 		}
 	}
 	clientclose(s);
-	/* Í¨Öª¶©ÔÄÕß */
+	/* é€šçŸ¥è®¢é˜…è€… */
 	setsocketevent(clientdiscon);
 	notify_observable(s);
 }
@@ -364,7 +361,7 @@ void CMSSocket::severreceive_skt(int s)
 			std::shared_ptr<recvdata> recvda = std::make_shared<recvdata>(data);
 			_dataqueue.push(recvda);
 
-			/* Í¨Öª¶©ÔÄÕß */
+			/* é€šçŸ¥è®¢é˜…è€… */
 			if (datalen == DATAPACKETSIZE)
 				setsocketevent(serverrecv);
 			else
@@ -373,7 +370,7 @@ void CMSSocket::severreceive_skt(int s)
 		}
 	}
 	clientclose(s);
-	/* Í¨Öª¶©ÔÄÕß */
+	/* é€šçŸ¥è®¢é˜…è€… */
 	setsocketevent(clientdiscon);
 	notify_observable(s);
 }

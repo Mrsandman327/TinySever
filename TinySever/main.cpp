@@ -1,4 +1,4 @@
-#include "MSServer.h"
+ï»¿#include "MSServer.h"
 #include <stdio.h>
 #include <chrono>
 #include <string.h>
@@ -28,23 +28,23 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	/*´´½¨±»¶©ÔÄÕß*/
+	/*åˆ›å»ºè¢«è®¢é˜…è€…*/
 	CMSSocket *socket = new CMSSocket;
 
-	/*´´½¨¶©ÔÄÕß*/
+	/*åˆ›å»ºè®¢é˜…è€…*/
 	CMSServer *server = new CMSServer(socket);
 
-	/*Ìí¼Ó¶©ÔÄÕß*/
+	/*æ·»åŠ è®¢é˜…è€…*/
 	socket->attach_observable(server);
 #if 0
 	socket->client_connect(argv[1], atoi(argv[2]));
 
 	getchar();
 #else
-	/*´´½¨·þÎñÆ÷*/
+	/*åˆ›å»ºæœåŠ¡å™¨*/
 	int sockfd = socket->sever_create(argv[1], atoi(argv[2]));
 
-	/*ÍË³ö*/
+	/*é€€å‡º*/
 	while (true)
 	{
 		char s[100];

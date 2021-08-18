@@ -21,13 +21,13 @@
     <ClCompile Include="MSSocket.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="MSServer.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="cJSON.c">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="CJsonObject.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="MSServer.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
