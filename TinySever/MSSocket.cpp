@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <unistd.h> //close()
 #include <netdb.h> //gethostbyname
+#include <fcntl.h>
 
 #define INVALID_SOCKET  (unsigned int)(~0)
 #define SOCKET_ERROR				  (-1)
@@ -26,6 +27,10 @@
 #define WOULDBLOCK  WSAEWOULDBLOCK
 #define socklen_t int
 #endif
+
+#define _Blocking			0	/*堵塞I/O*/
+#define _NonBlocking		1   /*非堵塞I/O*/
+#define _IOMODEL_  _NonBlocking
 
 std::mutex g_mutex;
 
@@ -242,6 +247,17 @@ bool CMSSocket::listen_skt(int s, std::string addr, int port)
 	int breuseaddr = 1;
 	setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (const char*)&breuseaddr, sizeof(int));
 
+#if _IOMODEL_ == _NonBlocking
+	/*设置非堵塞模式*/
+#ifdef _WIN32
+	unsigned long ul = 1;
+	ioctlsocket(s, FIONBIO, (unsigned long *)&ul);
+#else
+	int flags = fcntl(s, F_GETFL, 0);
+	fcntl(s, F_SETFL, flags | O_NONBLOCK);
+#endif
+#endif
+
 	sockaddr_in sockAddr;
 	//memset(sockAddr.sin_zero, 0, sizeof(struct sockaddr_in));
 	sockAddr.sin_family = AF_INET;
@@ -260,10 +276,118 @@ bool CMSSocket::listen_skt(int s, std::string addr, int port)
 		return false;
 	}
 
+#if _IOMODEL_ == _NonBlocking
+	std::thread selectthread(&CMSSocket::server_skt, this, s);
+	selectthread.detach();
+#elif _IOMODEL_ == _Blocking
 	std::thread thread(&CMSSocket::accpet_skt, this, s);
 	thread.detach();
-
+#endif
 	return true;
+}
+
+void CMSSocket::server_skt(int s)
+{
+	/*连接的客户端信息*/
+	struct sockaddr_in clientaddr;
+	int addrlen = sizeof(clientaddr);
+
+	/*保存最大文件描述符*/
+	int maxfd = s;
+
+	/*文件描述符*/
+	fd_set readfds;
+
+	/*把readfds清空*/
+	FD_ZERO(&readfds);
+
+	/*把要监听的sockfd添加到readfds中*/
+	FD_SET(s, &readfds);
+	maxfd = (maxfd > s ? maxfd : s) + 1;
+
+	while (true)
+	{
+		/*用select类监听sockfd 阻塞状态*/
+		int  ret = select(maxfd, &readfds, NULL, NULL, NULL);
+
+		/*判断是否是客户端链接*/
+		if (FD_ISSET(s, &readfds))
+		{
+			/* 接受客户端连接*/
+			int clientfd = accept(s, (struct sockaddr *)&clientaddr, (socklen_t *)&addrlen);
+			if (clientfd != INVALID_SOCKET)
+			{
+				/*添加到客户socket列表*/
+				addclientsock(clientfd);
+
+				/*客户端套接字描述符添加到监听集合中*/
+				FD_SET(clientfd, &readfds);
+				maxfd = (maxfd > clientfd ? maxfd : clientfd) + 1;
+
+				/* 通知订阅者 */
+				setsocketevent(clientaccpet);
+				notify_observable(clientfd);
+
+				continue;
+				//printf("ip=%s\n", inet_ntoa(clientaddr.sin_addr));
+			}
+		}
+		else
+		{
+			/*select函数返回时, readfds里只会留下可以读操作的文件描述符，
+			其它不可操作的文件描述符会移除掉的。这里需要重新添加*/
+			FD_SET(s, &readfds);
+			maxfd = (maxfd > s ? maxfd : s) + 1;
+		}
+
+		int clientsize = getclientsocksize();
+		for (int i = 0; i<clientsize; i++)
+		{
+			if (FD_ISSET(_clientsocklist[i], &readfds))
+			{
+				/* 读取数据*/
+				char rbuffer[65535];
+				int datalen = receive_skt(_clientsocklist[i], rbuffer, sizeof(rbuffer));
+				if (datalen == 0)
+				{
+					continue;
+				}
+				else if (datalen == SOCKET_ERROR)
+				{
+					/*客户端套接字描述符从监听集合中删除*/
+					FD_CLR(_clientsocklist[i], &readfds);
+					
+					/* 通知订阅者 */
+					setsocketevent(clientdiscon);
+					notify_observable(_clientsocklist[i]);
+					
+					clientclose(_clientsocklist[i]);
+					//break;
+				}
+				else
+				{
+					recvdata data;
+					memcpy(&data, rbuffer, DATAPACKETSIZE);
+					std::shared_ptr<recvdata> recvda = std::make_shared<recvdata>(data);
+					_dataqueue.push(recvda);
+
+					/* 通知订阅者 */
+					if (datalen == DATAPACKETSIZE)
+						setsocketevent(serverrecv);
+					else
+						setsocketevent(datanodefine);
+					notify_observable(_clientsocklist[i]);
+				}
+			}
+			else
+			{
+				/*select函数返回时, readfds里只会留下可以读操作的文件描述符，
+				其它不可操作的文件描述符会移除掉的。这里需要重新添加*/
+				FD_SET(_clientsocklist[i], &readfds);
+				maxfd = (maxfd > _clientsocklist[i] ? maxfd : _clientsocklist[i]) + 1;
+			}
+		}
+	}
 }
 
 void CMSSocket::accpet_skt(int s)

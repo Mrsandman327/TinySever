@@ -8,7 +8,7 @@ APP = tinyserver
 DEL = rm -rf
 LIB = -lpthread
 endif
-#设置编译器 
+#设置编译器
 CC = g++
 # 如果是当前目录，也可以不指定
 SOURCE_DIR = ./									
@@ -28,7 +28,7 @@ target:
 all:${APP}
 #生成带GBD调试选项的可执行文件
 ${APP}:$(CUR_C_OBJS) $(CUR_CPP_OBJS)
-	$(CC) -std=c++11 $^ -o $@ $(LIB)
+	$(CC) -g -std=c++11 $^ -o $@ $(LIB)
 #编译所有.c文件
 $(CUR_C_OBJS):%.o:%.c
 	$(CC) -g -c -std=c++11 $^ -o $@

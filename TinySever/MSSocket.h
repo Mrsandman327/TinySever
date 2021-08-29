@@ -68,6 +68,7 @@ private:
 	bool	connect_skt(int s, std::string addr, int port);
 
 	/*thread*/
+	void	server_skt(int s);
 	void    accpet_skt(int s);
 	void    clientreceive_skt(int s);
 	void    severreceive_skt(int s);
