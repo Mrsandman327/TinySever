@@ -29,10 +29,8 @@
 #endif
 
 #define _Blocking			0	/*堵塞I/O*/
-#define _NonBlocking		1   /*非堵塞I/O*/
+#define _NonBlocking		1   /*非堵塞I/O(非堵塞模式下使用多路IO复用模型，window下使用select,linux下可选择select,epoll)*/
 #define _IOMODEL_  _NonBlocking
-
-std::mutex g_mutex;
 
 CMSSocket::CMSSocket()
 {
@@ -247,11 +245,11 @@ bool CMSSocket::listen_skt(int s, std::string addr, int port)
 	int breuseaddr = 1;
 	setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (const char*)&breuseaddr, sizeof(int));
 
-#if _IOMODEL_ == _NonBlocking
 	/*设置非堵塞模式*/
+#if _IOMODEL_ == _NonBlocking
 #ifdef _WIN32
 	unsigned long ul = 1;
-	ioctlsocket(s, FIONBIO, (unsigned long *)&ul);
+	ioctlsocket(s, FIONBIO, (unsigned long *)&ul);
 #else
 	int flags = fcntl(s, F_GETFL, 0);
 	fcntl(s, F_SETFL, flags | O_NONBLOCK);
@@ -277,8 +275,13 @@ bool CMSSocket::listen_skt(int s, std::string addr, int port)
 	}
 
 #if _IOMODEL_ == _NonBlocking
-	std::thread selectthread(&CMSSocket::server_skt, this, s);
-	selectthread.detach();
+#ifdef __linux__
+	std::thread thread(&CMSSocket::serverepoll_skt, this, s);
+	thread.detach();
+#else
+	std::thread thread(&CMSSocket::serverselect_skt, this, s);
+	thread.detach();
+#endif
 #elif _IOMODEL_ == _Blocking
 	std::thread thread(&CMSSocket::accpet_skt, this, s);
 	thread.detach();
@@ -286,7 +289,7 @@ bool CMSSocket::listen_skt(int s, std::string addr, int port)
 	return true;
 }
 
-void CMSSocket::server_skt(int s)
+void CMSSocket::serverselect_skt(int s)
 {
 	/*连接的客户端信息*/
 	struct sockaddr_in clientaddr;
@@ -388,6 +391,103 @@ void CMSSocket::server_skt(int s)
 			}
 		}
 	}
+}
+
+void CMSSocket::serverepoll_skt(int s)
+{
+#ifdef __linux__
+	/*声明epoll_event结构体的变量,ev用于注册事件,数组用于回传要处理的事件*/
+	struct epoll_event ev, events[20];
+	/*设置与要处理的事件相关的文件描述符*/
+	ev.data.fd = s;
+
+	/*设置要处理的事件类型(可读事件，边沿触发)*/
+	ev.events = EPOLLIN | EPOLLET;
+	/*生成用于处理accept的epoll专用的文件描述符*/
+	int epfd = epoll_create(256);
+	/*注册epoll事件*/
+	epoll_ctl(epfd, EPOLL_CTL_ADD, s, &ev);
+	for (;;)
+	{
+		/*等待监控事件发生 -1：代表无限等待*/
+		int nfds = epoll_wait(epfd, events, 20, -1);
+		if (nfds == -1)
+		{
+			printf("socket---epoll_wait error,code:%d\n", geterror_skt());
+			continue;
+		}
+		else if (nfds == 0)
+		{
+			printf("socket---epoll_wait timeout\n");
+			continue;
+		}
+		else
+		{
+			for (int i = 0; i < nfds; ++i)
+			{
+				if (events[i].data.fd == s) /*有新的连接*/
+				{
+					/*连接的客户端信息*/
+					struct sockaddr_in clientaddr;
+					int addrlen = sizeof(clientaddr);
+					int clientfd = accept(s, (struct sockaddr *)&clientaddr, (socklen_t *)&addrlen);; //accept这个连接
+					if (clientfd != INVALID_SOCKET)
+					{
+						/*添加到客户socket列表*/
+						addclientsock(clientfd);
+
+						/* 通知订阅者 */
+						setsocketevent(clientaccpet);
+						notify_observable(clientfd);
+						/*将新的fd添加到epoll的监听队列中*/
+						ev.data.fd = clientfd;
+						ev.events = EPOLLIN | EPOLLET;
+						epoll_ctl(epfd, EPOLL_CTL_ADD, clientfd, &ev);
+					}
+				}
+				else if (events[i].events & EPOLLIN)/*有可读文件*/
+				{
+					int clientfd = events[i].data.fd;
+					if (clientfd  < 0)
+						continue;
+					char buf[65535];
+					int datalen = receive_skt(clientfd, buf, sizeof(buf));
+					if (datalen == 0)
+					{
+						continue;
+					}
+					else if (datalen == SOCKET_ERROR)
+					{
+						/*客户端套接字描述符从监听集合中删除*/
+						ev.data.fd = clientfd;
+						ev.events = EPOLLIN | EPOLLET;
+						epoll_ctl(epfd, EPOLL_CTL_DEL, clientfd, &ev);
+						/* 通知订阅者 */
+						setsocketevent(clientdiscon);
+						notify_observable(clientfd);
+
+						clientclose(clientfd);
+						//break;
+					}
+					else
+					{
+						recvdata data;						memcpy(&data, buf, DATAPACKETSIZE);
+						std::shared_ptr<recvdata> recvda = std::make_shared<recvdata>(data);						_dataqueue.push(recvda);
+						/* 通知订阅者 */
+						if (datalen == DATAPACKETSIZE)
+							setsocketevent(serverrecv);
+						else
+							setsocketevent(datanodefine);
+						notify_observable(clientfd);
+					}
+					//ev.data.fd = sockfd;     
+					//ev.events=EPOLLOUT|EPOLLET;
+					//epoll_ctl(epfd,EPOLL_CTL_MOD,sock,&ev);//修改标识符，等待下一个循环时发送数据，异步处理的精髓
+				}
+			}
+		}
+	}
+#endif
 }
 
 void CMSSocket::accpet_skt(int s)

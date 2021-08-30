@@ -34,7 +34,6 @@ public:
 	/*client notify*/
 	void LoginStateNotify(int state, unsigned int userid);
 	void ServerStateBotify(int state);
-
 	/*send data*/
 	bool SendDataPack(int socket, DATA_PACK *datapack);
 	void SendDataPackReturn(int socket, COMMANDTYPE type, RESULT result, void* data, int size);
@@ -48,7 +47,6 @@ public:
 	void CommandDelFriendReturn(int socket, DATA_PACK *datapack);
 	void CommandSingleChatReturn(int socket, DATA_PACK *datapack);
 	void CommandFriendInfoReturn(int socket, DATA_PACK *datapack);
-
 	/**/
 	void UndefineDataRequst(int socket);
 };
