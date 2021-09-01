@@ -1,7 +1,7 @@
-﻿#include "MSServer.h"
-#include <stdio.h>
+﻿#include <stdio.h>
 #include <chrono>
 #include <string.h>
+#include "MSServer.h"
 
 #ifdef __linux__
 #include <sys/io.h>
@@ -10,6 +10,7 @@
 #include <io.h>
 #include <direct.h>
 #endif
+
 
 int main(int argc, char *argv[])
 {

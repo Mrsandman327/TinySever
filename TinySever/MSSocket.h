@@ -9,6 +9,7 @@
 #include <sstream>
 #include <fstream>
 #include "SocketObservable.h"
+#include "ThreadPool.h"
 
 #define DATAPACKETSIZE 1024
 
@@ -40,6 +41,9 @@ private:
 		char buffer[DATAPACKETSIZE];
 	};
 	std::queue<std::shared_ptr<recvdata>> _dataqueue;
+
+	/*threadpool*/
+	ThreadPool *_pthreadpool;
 public:
 	/*Observable*/
 	void attach_observable(CSocketObservable *observer);
