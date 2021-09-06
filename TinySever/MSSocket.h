@@ -38,12 +38,15 @@ private:
 
 	/*data*/
 	struct recvdata{
+		int socket;
 		char buffer[DATAPACKETSIZE];
 	};
 	std::queue<std::shared_ptr<recvdata>> _dataqueue;
 
 	/*threadpool*/
 	ThreadPool *_pthreadpool;
+
+	std::mutex _mutex;
 public:
 	/*Observable*/
 	void attach_observable(CSocketObservable *observer);
@@ -66,6 +69,12 @@ private:
 	int		uninit_skt();
 	int  	make_skt(); 
 	void    close_skt(int s);
+	void	setnoblocking_skt(int s);
+
+	/*epoll*/
+	void 	addepollfd_skt(int epollfd, int fd, bool oneshot);
+	void	delepollfd_skt(int epollfd, int fd, bool oneshot);
+	void 	resetonshot_skt(int epollfd, int fd);
 
 	/*op*/
 	bool    listen_skt(int s, std::string addr, int port);
@@ -91,6 +100,6 @@ public:
 	int sever_create(std::string addr, int port);
 
 	/*get data*/
-	bool get_recvbuf(char **buffer);
+	bool get_recvbuf(int &socket, char **buffer);
 };
 

@@ -168,6 +168,66 @@ void CMSSocket::severclose(int s)
 	_clientsocklist.clear();
 }
 
+void CMSSocket::setnoblocking_skt(int s)
+{
+#ifdef _WIN32
+	unsigned long ul = 1;
+	ioctlsocket(s, FIONBIO, (unsigned long *)&ul);
+#else
+	int flags = fcntl(s, F_GETFL, 0);
+	fcntl(s, F_SETFL, flags | O_NONBLOCK);
+#endif
+}
+
+void CMSSocket::addepollfd_skt(int epollfd, int fd, bool oneshot)
+{
+#ifdef __linux__
+	epoll_event event;
+	event.data.fd = fd;
+
+	/*设置要处理的事件类型(可读事件，边沿触发)*/
+	event.events = EPOLLIN | EPOLLET;
+	/*采用EPOLLONETSHOT事件*/
+	if (oneshot)
+	{
+		event.events |= EPOLLONESHOT;
+	}
+
+	epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &event);
+#endif
+}
+
+void CMSSocket::delepollfd_skt(int epollfd, int fd, bool oneshot)
+{
+#ifdef __linux__
+	epoll_event event;
+	event.data.fd = fd;
+
+	/*设置要处理的事件类型(可读事件，边沿触发)*/
+	event.events = EPOLLIN | EPOLLET;
+
+	/*采用EPOLLONETSHOT事件*/
+	if (oneshot)
+	{
+		event.events |= EPOLLONESHOT;
+	}
+
+	epoll_ctl(epollfd, EPOLL_CTL_DEL, fd, &event);
+#endif
+}
+
+void CMSSocket::resetonshot_skt(int epollfd, int fd)
+{
+#ifdef __linux__
+	epoll_event event;
+	event.data.fd = fd;
+
+	event.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
+
+	epoll_ctl(epollfd, EPOLL_CTL_MOD, fd, &event);
+#endif
+}
+
 int CMSSocket::send_skt(int s, char *data, int len)
 {
 	int length;
@@ -250,13 +310,7 @@ bool CMSSocket::listen_skt(int s, std::string addr, int port)
 
 	/*设置非堵塞模式*/
 #if _IOMODEL_ == _NonBlocking
-#ifdef _WIN32
-	unsigned long ul = 1;
-	ioctlsocket(s, FIONBIO, (unsigned long *)&ul);
-#else
-	int flags = fcntl(s, F_GETFL, 0);
-	fcntl(s, F_SETFL, flags | O_NONBLOCK);
-#endif
+	setnoblocking_skt(s);
 #endif
 
 	sockaddr_in sockAddr;
@@ -271,7 +325,7 @@ bool CMSSocket::listen_skt(int s, std::string addr, int port)
 		return false;
 	}
 
-	if (listen(s, 5) == SOCKET_ERROR)
+	if (listen(s, SOMAXCONN) == SOCKET_ERROR)
 	{
 		printf("socket---listen error,code:%d\n", geterror_skt());
 		return false;
@@ -317,6 +371,17 @@ void CMSSocket::serverselect_skt(int s)
 	{
 		/*用select类监听sockfd 阻塞状态*/
 		int  ret = select(maxfd, &readfds, NULL, NULL, NULL);
+		
+		if (ret == -1)
+		{
+			printf("socket---select error,code:%d\n", geterror_skt());
+			break;
+		}
+		else if (ret == 0)
+		{
+			printf("socket---select timeout\n");
+			continue;
+		}
 
 		/*判断是否是客户端链接*/
 		if (FD_ISSET(s, &readfds))
@@ -332,12 +397,15 @@ void CMSSocket::serverselect_skt(int s)
 				FD_SET(clientfd, &readfds);
 				maxfd = (maxfd > clientfd ? maxfd : clientfd) + 1;
 
+				/*设置接入的连接为非堵塞*/
+				setnoblocking_skt(clientfd);
+
 				/* 通知订阅者 */
 				setsocketevent(clientaccpet);
 				notify_observable(clientfd);
+				//printf("ip=%s\n", inet_ntoa(clientaddr.sin_addr));
 
 				continue;
-				//printf("ip=%s\n", inet_ntoa(clientaddr.sin_addr));
 			}
 			else
 			{
@@ -355,7 +423,7 @@ void CMSSocket::serverselect_skt(int s)
 		}
 
 		int clientsize = getclientsocksize();
-		for (int i = 0; i<clientsize; i++)
+		for (int i = 0; i < clientsize; i++)
 		{
 			if (FD_ISSET(_clientsocklist[i], &readfds))
 			{
@@ -375,13 +443,19 @@ void CMSSocket::serverselect_skt(int s)
 					setsocketevent(clientdiscon);
 					notify_observable(_clientsocklist[i]);
 					
+					/*关闭客户端*/
 					clientclose(_clientsocklist[i]);
+					--i;--clientsize;
+
+					/*计算描述符最大个数*/
+					maxfd = *max_element(_clientsocklist.begin(), _clientsocklist.end()) + 1;
 					//break;
 				}
 				else
 				{
 					recvdata data;
-					memcpy(&data, rbuffer, DATAPACKETSIZE);
+					data.socket = _clientsocklist[i];
+					memcpy(&data.buffer, rbuffer, DATAPACKETSIZE);
 					std::shared_ptr<recvdata> recvda = std::make_shared<recvdata>(data);
 					_dataqueue.push(recvda);
 
@@ -410,24 +484,23 @@ void CMSSocket::serverepoll_skt(int s)
 {
 #ifdef __linux__
 	/*声明epoll_event结构体的变量,ev用于注册事件,数组用于回传要处理的事件*/
-	struct epoll_event ev, events[20];
-
-	/*设置与要处理的事件相关的文件描述符*/
-	ev.data.fd = s;
-
-	/*设置要处理的事件类型(可读事件，边沿触发)*/
-	ev.events = EPOLLIN | EPOLLET;
+	struct epoll_event events[10000];
 
 	/*生成用于处理accept的epoll专用的文件描述符*/
 	int epfd = epoll_create(256);
+	if(epfd == -1)
+	{
+		printf("socket---epoll_create error,code:%d\n", geterror_skt());
+		return false;
+	}
 
 	/*注册epoll事件*/
-	epoll_ctl(epfd, EPOLL_CTL_ADD, s, &ev);
+	addepollfd_skt(epfd, s, true);
 
-	for (;;)
+	while (true)
 	{
 		/*等待监控事件发生 -1：代表无限等待*/
-		int nfds = epoll_wait(epfd, events, 20, -1);
+		int nfds = epoll_wait(epfd, events, 10000, -1);
 		if (nfds == -1)
 		{
 			if(geterror_skt() != EINTR)
@@ -450,7 +523,19 @@ void CMSSocket::serverepoll_skt(int s)
 
 		for (int i = 0; i < nfds; ++i)
 		{
-			if (events[i].data.fd == s) /*有新的连接*/
+			int sockfd = events[i].data.fd;
+			if (events[i].events & (EPOLLERR | EPOLLHUP | EPOLLRDHUP))
+			{
+				/* 监控到错误或者挂起 */
+				printf("epoll error\n");
+				/* 通知订阅者 */
+				setsocketevent(clientdiscon);
+				notify_observable(sockfd);
+
+				clientclose(sockfd);
+				continue;
+			} 
+			else if (sockfd == s) /*有新的连接*/
 			{
 				/*连接的客户端信息*/
 				struct sockaddr_in clientaddr;
@@ -461,40 +546,49 @@ void CMSSocket::serverepoll_skt(int s)
 					/*添加到客户socket列表*/
 					addclientsock(clientfd);
 
+					/*设置接入的连接为非堵塞*/
+					setnoblocking_skt(clientfd);
+
 					/* 通知订阅者 */
 					setsocketevent(clientaccpet);
 					notify_observable(clientfd);
 
 					/*将新的fd添加到epoll的监听队列中*/
-					ev.data.fd = clientfd;
-					ev.events = EPOLLIN | EPOLLET;
-					epoll_ctl(epfd, EPOLL_CTL_ADD, clientfd, &ev);
+					addepollfd_skt(epfd,clientfd,true);
+
+					resetonshot_skt(epfd,s);
 				}
 			}
 			else if (events[i].events & EPOLLIN)/*有可读文件*/
 			{
-				int clientfd = events[i].data.fd;
-				if (clientfd  < 0)
+				if (sockfd  < 0)
 					continue;
 
 				char buf[65535];
-				int datalen = receive_skt(clientfd, buf, sizeof(buf));
+				int datalen = receive_skt(sockfd, buf, sizeof(buf));
 				if (datalen == 0)
 				{
 					continue;
 				}
 				else if (datalen == SOCKET_ERROR)
 				{
-					/*客户端套接字描述符从监听集合中删除*/
-					ev.data.fd = clientfd;
-					ev.events = EPOLLIN | EPOLLET;
-					epoll_ctl(epfd, EPOLL_CTL_DEL, clientfd, &ev);
+					if (geterror_skt() != EAGAIN)
+					{
 
-					/* 通知订阅者 */
-					setsocketevent(clientdiscon);
-					notify_observable(clientfd);
+						/*客户端套接字描述符从监听集合中删除*/
+						delepollfd_skt(epfd, sockfd, true);
 
-					clientclose(clientfd);
+						/* 通知订阅者 */
+						setsocketevent(clientdiscon);
+						notify_observable(sockfd);
+
+						clientclose(sockfd);
+					}
+					else
+					{
+						resetonshot_skt(epfd, sockfd);
+						continue;
+					}
 					//break;
 				}
 				else
@@ -509,16 +603,16 @@ void CMSSocket::serverepoll_skt(int s)
 						setsocketevent(serverrecv);
 					else
 						setsocketevent(datanodefine);
-					//notify_observable(clientfd);
-					callback func = std::bind(&CMSSocket::notify_observable, this, _clientsocklist[i]);
+					//notify_observable(sockfd);
+					callback func = std::bind(&CMSSocket::notify_observable, this, sockfd);
 					_pthreadpool->append(func);	
+
+					resetonshot_skt(epfd, sockfd);
 				}
-				//ev.data.fd = sockfd;     
-				//ev.events=EPOLLOUT|EPOLLET;
-				//epoll_ctl(epfd,EPOLL_CTL_MOD,sock,&ev);//修改标识符，等待下一个循环时发送数据，异步处理的精髓
 			}
 		}
 	}
+
 #endif
 }
 
@@ -661,18 +755,21 @@ int CMSSocket::sever_create(std::string addr, int port)
 	return s;
 }
 
-bool CMSSocket::get_recvbuf(char **buffer)
+bool CMSSocket::get_recvbuf(int &socket, char **buffer)
 {  
 	if (_dataqueue.size() == 0)
 	{
 		return false;
 	}
 
-	std::shared_ptr<recvdata> pdata;
-	pdata = _dataqueue.front();
-	_dataqueue.pop();
-
-	memcpy(*buffer, pdata->buffer, DATAPACKETSIZE);
+	do{
+		std::lock_guard<std::mutex> lock(_mutex);
+		std::shared_ptr<recvdata> pdata;
+		pdata = _dataqueue.front();
+		_dataqueue.pop();
+		socket = pdata->socket;
+		memcpy(*buffer, pdata->buffer, DATAPACKETSIZE);
+	} while (0);
 
 	return true;
 };

@@ -1,11 +1,12 @@
-﻿#include "MSServer.h"
-#include <ctime>
+﻿#include <ctime>
 #include <stdio.h>
 #include <chrono>
 #include <thread>
 #include <stdarg.h>
 #include <string.h>
 #include <functional>
+#include "MSServer.h"
+#include "log.h"
 
 #ifdef __linux__
 #include <sys/io.h>
@@ -26,15 +27,75 @@
 #endif
 
 CMSServer::CMSServer(CMSSocket *sub)
-{
+{	
+	std::string logpath = GetExePath() +"/log";
+	if (access(logpath.c_str(), 0) != 0)
+	{
+#ifdef __linux__
+		mkdir(logpath.c_str(), S_IRWXU);
+#elif  defined(_WIN32)
+		mkdir(logpath.c_str());
+#endif
+	}
+	std::string exname = "Server";
+	
+	/*初始化log*/
+	LOG_INIT(logpath.c_str(), exname.c_str(), 100);
+
 	this->_socket = sub;
 	ReadUserInfoJson();
+
 }
 
 CMSServer::~CMSServer()
 {
 	_oJsonuserinfo.Clear();
 	_mapUserOnline.clear();
+	/*释放log*/
+	LOG_UNINIT;
+}
+
+std::string CMSServer::GBKToUTF8(const std::string& strGBK)
+{
+#if _MSC_VER
+	std::string strOutUTF8 = "";
+	WCHAR * str1;
+	int n = MultiByteToWideChar(CP_ACP, 0, strGBK.c_str(), -1, NULL, 0);
+	str1 = new WCHAR[n];
+	MultiByteToWideChar(CP_ACP, 0, strGBK.c_str(), -1, str1, n);
+	n = WideCharToMultiByte(CP_UTF8, 0, str1, -1, NULL, 0, NULL, NULL);
+	char * str2 = new char[n];
+	WideCharToMultiByte(CP_UTF8, 0, str1, -1, str2, n, NULL, NULL);
+	strOutUTF8 = str2;
+	delete[]str1;
+	str1 = NULL;
+	delete[]str2;
+	str2 = NULL;
+	return strOutUTF8;
+#else
+	return strGBK;
+#endif
+}
+
+std::string CMSServer::UTF8ToGBK(std::string &strUtf8)
+{
+#if _MSC_VER
+	std::string strOutGBK = "";
+	int len = MultiByteToWideChar(CP_UTF8, 0, strUtf8.c_str(), -1, NULL, 0);
+	WCHAR *wszGBK = new WCHAR[len + 1];
+	memset(wszGBK, 0, len * 2 + 2);
+	MultiByteToWideChar(CP_UTF8, 0, strUtf8.c_str(), -1, wszGBK, len);
+	len = WideCharToMultiByte(CP_ACP, 0, wszGBK, -1, NULL, 0, NULL, NULL);
+	char *pszGBK = new char[len + 1];
+	memset(pszGBK, 0, len + 1);
+	WideCharToMultiByte(CP_ACP, 0, wszGBK, -1, pszGBK, len, NULL, NULL);
+	strOutGBK = pszGBK;
+	delete[]pszGBK;
+	delete[]wszGBK;
+	return strOutGBK;
+#else
+	return strUtf8;
+#endif
 }
 
 std::string CMSServer::GetCurTime()
@@ -74,7 +135,7 @@ std::string CMSServer::GetExePath()
 	return s_path;
 }
 
-void CMSServer::Prtinf(unsigned short cr, const char *_format, ...)
+void CMSServer::PrintfInfo(unsigned short cr, const char *_format, ...)
 {
 	char szBuffer[65535];
 	memset(szBuffer, 0x00, sizeof(szBuffer));
@@ -99,7 +160,8 @@ void CMSServer::Prtinf(unsigned short cr, const char *_format, ...)
 #endif
 
 	std::string info = szBuffer;
-	info = GetCurTime() + ":" + info;
+	LOG_INFO("%s",info.c_str());
+	info = GetCurTime() + ":" + info + "\n";
 	printf("%s", info.c_str());
 
 #ifdef _WIN32
@@ -137,7 +199,7 @@ void CMSServer::ReadUserInfoJson()
 	}
 	_oJsonuserinfo.Parse(strjson);
 
-	Prtinf(0x9 ,"%s\n", _oJsonuserinfo.ToFormattedString().c_str());
+	PrintfInfo(0x9 ,"%s", _oJsonuserinfo.ToFormattedString().c_str());
 }
 
 void CMSServer::SaveUserInfoJson()
@@ -166,7 +228,7 @@ void CMSServer::SaveUserInfoJson()
 	std::shared_ptr<std::iostream> content = std::make_shared<std::fstream>(userinfofile, std::ios::out);
 	*content << strjson;
 
-	Prtinf(0x9 ,"%s\n", strjson.c_str());
+	PrintfInfo(0x9 ,"%s", strjson.c_str());
 }
 
 bool CMSServer::MapRomoveByValue(int value)
@@ -206,30 +268,31 @@ void CMSServer::Update(int socket)
 	socketevent event = _socket->getsocketevent();
 	switch (event)
 	{
-	case clientrecv: Prtinf(0x6, "user---socket:%d Client receives information\n", socket); break;
-	case clientaccpet:Prtinf(0x6, "user---socket:%d Client connection\n", socket); break;
-	case clientdiscon:Prtinf(0x6, "user---socket:%d Client disconnected\n", socket); MapRomoveByValue(socket); break;
-	case servercolse:Prtinf(0x6, "user---socket:%d Server shut down\n", socket); _oJsonuserinfo.Clear(); _mapUserOnline.clear(); break;
-	case datanodefine:Prtinf(0x6, "user---socket:%d Undefined data\n", socket); UndefineDataRequst(socket); break;
-	case serverrecv:Prtinf(0x6, "user---socket:%d Server received message\n", socket); RecvDataProcess(socket); break;
+	case clientrecv: PrintfInfo(0x6, "user---socket:%d Client receives information", socket); break;
+	case clientaccpet:PrintfInfo(0x6, "user---socket:%d Client connection", socket); break;
+	case clientdiscon:PrintfInfo(0x6, "user---socket:%d Client disconnected", socket); MapRomoveByValue(socket); break;
+	case servercolse:PrintfInfo(0x6, "user---socket:%d Server shut down", socket); _oJsonuserinfo.Clear(); _mapUserOnline.clear(); break;
+	case datanodefine:PrintfInfo(0x6, "user---socket:%d Undefined data", socket); UndefineDataRequst(); break;
+	case serverrecv:PrintfInfo(0x6, "user---socket:%d Server received message", socket); RecvDataProcess(); break;
 	default:
 		break;
 	}
 }
 
-void CMSServer::UndefineDataRequst(int socket)
+void CMSServer::UndefineDataRequst()
 {
+	int clientsocket;
 	char *buffer = new char[DATAPACKETSIZE];
-	_socket->get_recvbuf(&buffer);
+	_socket->get_recvbuf(clientsocket, &buffer);
 
-	Prtinf(0x4, "log---undefine info:%s", buffer);
+	PrintfInfo(0x4, "log---undefine info:%s", buffer);
 
 	if (strstr(buffer, "HTTP"))
 	{
 		/*解析请求*/
 		char filename[10] = { 0 };
 		sscanf(buffer, "GET /%s", filename);
-		printf("filename: %s\n", filename);
+		PrintfInfo(0x6, "filename: %s", filename);
 
 		/*设置内容类型*/
 		char *mime = nullptr;
@@ -264,7 +327,7 @@ void CMSServer::UndefineDataRequst(int socket)
 		{
 			content->read(buffer + headlen, datalen - headlen);
 			/*发送应答包*/
-			if (0 == _socket->send_skt(socket, (char*)buffer, datalen))
+			if (0 == _socket->send_skt(clientsocket, (char*)buffer, datalen))
 			{
 				headlen = 0;
 			}
@@ -274,10 +337,11 @@ void CMSServer::UndefineDataRequst(int socket)
 	delete[] buffer;
 }
 
-void CMSServer::RecvDataProcess(int socket)
+void CMSServer::RecvDataProcess()
 {
+	int clientsocket;
 	char *buffer = new char[DATAPACKETSIZE];
-	if (_socket->get_recvbuf(&buffer))
+	if (_socket->get_recvbuf(clientsocket, &buffer))
 	{
 		std::function<void(int,DATA_PACK*)> CommandReturn;
 
@@ -288,86 +352,86 @@ void CMSServer::RecvDataProcess(int socket)
 		{
 		case COMMAND_SIGIN: /*注册*/
 			{
-				Prtinf(0x5, "%s---Receipt of sigin application!\n", GetCurTime().c_str());
+				PrintfInfo(0x5, "Receipt of sigin application!");
 				CommandReturn = std::bind(&CMSServer::CommandSiginReturn, this, std::placeholders::_1, std::placeholders::_2);
 			}
 			break;
 		case COMMAND_SIGOUT: /*注销*/
 			{
-				Prtinf(0x5, "%s---Receipt of sigout application!\n", GetCurTime().c_str());
+				PrintfInfo(0x5, "Receipt of sigout application!");
 				CommandReturn = std::bind(&CMSServer::CommandSigoutReturn, this, std::placeholders::_1, std::placeholders::_2);	
 			}
 			break;
 		case COMMAND_LOGIN:/*登入*/
 			{
-				Prtinf(0x5, "%s---Receipt of login application!!\n", GetCurTime().c_str());
+				PrintfInfo(0x5, "Receipt of login application!!");
 				CommandReturn = std::bind(&CMSServer::CommandLoginReturn, this, std::placeholders::_1, std::placeholders::_2);
 			}
 			break;
 		case COMMAND_LOGOUT:/*登出*/
 			{
-				Prtinf(0x5, "%s---Receipt of logout application!!\n", GetCurTime().c_str());
+				PrintfInfo(0x5, "Receipt of logout application!!");
 				CommandReturn = std::bind(&CMSServer::CommandLogoutReturn, this, std::placeholders::_1, std::placeholders::_2);
 			}
 			break;
 		case COMMAND_ADDFRIEND:/*添加好友*/
 			{
-				Prtinf(0x5, "%s---Receipt of add friend application!!\n", GetCurTime().c_str());
+				PrintfInfo(0x5, "Receipt of add friend application!!");
 				CommandReturn = std::bind(&CMSServer::CommandAddFriendReturn, this, std::placeholders::_1, std::placeholders::_2);
 			}
 			break;
 		case COMMAND_DELFRIEND:/*删除好友*/
 			{
-				Prtinf(0x5, "%s---Receipt of del friend application!!\n", GetCurTime().c_str());
+				PrintfInfo(0x5, "Receipt of del friend application!!");
 				CommandReturn = std::bind(&CMSServer::CommandDelFriendReturn, this, std::placeholders::_1, std::placeholders::_2);
 			}
 			break;
 		case COMMAND_ADDGROUND:/*加入群聊*/
 			{
-				Prtinf(0x5, "%s---收到加入群聊申请!\n", GetCurTime().c_str());
+				PrintfInfo(0x5, "收到加入群聊申请!");
 				CHATINFO chatinfo;
 				memcpy(&chatinfo, datapack.data, sizeof(chatinfo));
-				Prtinf(0xd, "data---申请人:%d\n", chatinfo.useridfrom);
-				Prtinf(0xd, "data---要加入的群:%d\n", chatinfo.useridto);
-				Prtinf(0xd, "data---打招呼:%s\n", chatinfo.info);
+				PrintfInfo(0xd, "data---申请人:%d", chatinfo.useridfrom);
+				PrintfInfo(0xd, "data---要加入的群:%d", chatinfo.useridto);
+				PrintfInfo(0xd, "data---打招呼:%s", chatinfo.info);
 			}
 			break;
 		case COMMAND_DELGROUND:/*退出群聊*/
 			{
-				Prtinf(0x5, "%s---收到退出群聊申请！\n", GetCurTime().c_str());
+				PrintfInfo(0x5, "收到退出群聊申请！");
 				CHATINFO chatinfo;
 				memcpy(&chatinfo, datapack.data, sizeof(chatinfo));
-				Prtinf(0xd, "data---申请人:%d\n", chatinfo.useridfrom);
-				Prtinf(0xd, "data---要退出的群:%d\n", chatinfo.useridto);
-				Prtinf(0xd, "data---寄语:%s\n", chatinfo.info);
+				PrintfInfo(0xd, "data---申请人:%d", chatinfo.useridfrom);
+				PrintfInfo(0xd, "data---要退出的群:%d", chatinfo.useridto);
+				PrintfInfo(0xd, "data---寄语:%s", chatinfo.info);
 			}
 			break;
 		case COMMAND_SINGLECHAT:/*单聊*/
 			{
-				Prtinf(0x5, "%s---Receipt of chat application!!\n", GetCurTime().c_str());
+				PrintfInfo(0x5, "Receipt of chat application!!");
 				CommandReturn = std::bind(&CMSServer::CommandSingleChatReturn, this, std::placeholders::_1, std::placeholders::_2);
 			}
 			break;
 		case COMMAND_GROUPCHAT:/*群聊*/
 			{
-				Prtinf(0x5, "%s---收到群聊信息!\n", GetCurTime().c_str());
+				PrintfInfo(0x5, "收到群聊信息!");
 				CHATINFO chatinfo;
 				memcpy(&chatinfo, datapack.data, sizeof(chatinfo));
-				Prtinf(0xd, "data---发送人:%d\n", chatinfo.useridfrom);
-				Prtinf(0xd, "data---接收群:%d\n", chatinfo.useridto);
-				Prtinf(0xd, "data---信息:%s\n", chatinfo.info);
+				PrintfInfo(0xd, "data---发送人:%d", chatinfo.useridfrom);
+				PrintfInfo(0xd, "data---接收群:%d", chatinfo.useridto);
+				PrintfInfo(0xd, "data---信息:%s", chatinfo.info);
 			}
 			break;
 		case COMMAND_FRIENDINFO:/*好友信息*/
 			{
-				Prtinf(0x5, "%s---Receipt of friend info application!!\n", GetCurTime().c_str());
+				PrintfInfo(0x5, "Receipt of friend info application!!");
 				CommandReturn = std::bind(&CMSServer::CommandFriendInfoReturn, this, std::placeholders::_1, std::placeholders::_2);
 			}
 			break;
 		default:
 			break;
 		}
-		CommandReturn(socket, &datapack);
+		CommandReturn(clientsocket, &datapack);
 	}
 	delete[] buffer;
 }
@@ -393,11 +457,11 @@ void CMSServer::SendDataPackReturn(int socket, COMMANDTYPE type, RESULT result, 
 	memcpy(buff, &datapack, sizeof(DATA_PACK));
 	if (0 != _socket->send_skt(socket, (char*)buff, sizeof(DATA_PACK)))
 	{
-		Prtinf(0x8, "log---Command:%d Reply failed\n", type);
+		PrintfInfo(0x8, "log---Command:%d Reply failed", type);
 	}
 	else
 	{
-		Prtinf(0x8, "log---Command:%d Reply successfully\n",type);
+		PrintfInfo(0x8, "log---Command:%d Reply successfully",type);
 	}
 	delete[] buff;
 }
@@ -422,10 +486,10 @@ void CMSServer::CommandSiginReturn(int socket, DATA_PACK *datapack)
 {
 	SIGIN_INFO sigininfo;
 	memcpy(&sigininfo, datapack->data, sizeof(SIGIN_INFO));
-	Prtinf(0xd, "data---nickname:%s\n", sigininfo.nickname);
-	Prtinf(0xd, "data---Account:%d\n", sigininfo.userid);
-	Prtinf(0xd, "data---Password:%s\n", sigininfo.password);
-	Prtinf(0xd, "data---Signature:%s\n", sigininfo.userdescription);
+	PrintfInfo(0xd, "data---nickname:%s", sigininfo.nickname);
+	PrintfInfo(0xd, "data---Account:%d", sigininfo.userid);
+	PrintfInfo(0xd, "data---Password:%s", sigininfo.password);
+	PrintfInfo(0xd, "data---Signature:%s", sigininfo.userdescription);
 
 	/*校验注册信息*/
 	int usersize = 0;
@@ -481,13 +545,13 @@ LLL:
 	if (result)
 	{
 		data = nullptr;
-		Prtinf(0x8, "log---Sigin successfully\n");
+		PrintfInfo(0x8, "log---Sigin successfully");
 	}
 	else
 	{
 		data = (void*)errorinfo.c_str();
 		datasize = errorinfo.length();
-		Prtinf(0x8, "log---Sigin failed error info:%s\n", data);
+		PrintfInfo(0x8, "log---Sigin failed error info:%s", data);
 	}
 
 	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
@@ -497,8 +561,8 @@ void CMSServer::CommandSigoutReturn(int socket, DATA_PACK *datapack)
 {
 	USER_INFO userinfo;
 	memcpy(&userinfo, datapack->data, sizeof(USER_INFO));
-	Prtinf(0xd, "data---Account:%d\n", userinfo.userid);
-	Prtinf(0xd, "data---Password:%s\n", userinfo.password);
+	PrintfInfo(0xd, "data---Account:%d", userinfo.userid);
+	PrintfInfo(0xd, "data---Password:%s", userinfo.password);
 	
 	/*校验登录信息*/
 	int usersize = 0;
@@ -507,7 +571,7 @@ void CMSServer::CommandSigoutReturn(int socket, DATA_PACK *datapack)
 	std::string errorinfo = "";
 	if (!_mapUserOnline.count(userinfo.userid))
 	{
-		errorinfo = "该账户尚未登陆";
+		errorinfo = GBKToUTF8("该账户尚未登陆");
 		goto LLL;
 	}
 	
@@ -532,13 +596,13 @@ void CMSServer::CommandSigoutReturn(int socket, DATA_PACK *datapack)
 			}
 			else
 			{
-				errorinfo = "密码错误";
+				errorinfo = GBKToUTF8("密码错误");
 			}
 		}
 	}
 	if (errorinfo.empty() && !result)
 	{
-		errorinfo = "该用户尚未注册";
+		errorinfo = GBKToUTF8("该用户尚未注册");
 	}
 	
 LLL:
@@ -548,13 +612,13 @@ LLL:
 	if (result)
 	{
 		data = nullptr;
-		Prtinf(0x8, "log---Sigout successfully\n");
+		PrintfInfo(0x8, "log---Sigout successfully");
 	}
 	else
 	{
 		data = (void*)errorinfo.c_str();
 		datasize = errorinfo.length();
-		Prtinf(0x8, "log---Sigout failed error info:%s\n", data);
+		PrintfInfo(0x8, "log---Sigout failed error info:%s", data);
 	}
 
 	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
@@ -564,8 +628,8 @@ void CMSServer::CommandLoginReturn(int socket, DATA_PACK *datapack)
 {
 	USER_INFO userinfo;
 	memcpy(&userinfo, datapack->data, sizeof(USER_INFO));
-	Prtinf(0xd, "data---Account:%d\n", userinfo.userid);
-	Prtinf(0xd, "data---Password:%s\n", userinfo.password);
+	PrintfInfo(0xd, "data---Account:%d", userinfo.userid);
+	PrintfInfo(0xd, "data---Password:%s", userinfo.password);
 	
 	/*校验登录信息*/	
 	int usersize = 0;
@@ -575,7 +639,7 @@ void CMSServer::CommandLoginReturn(int socket, DATA_PACK *datapack)
 	std::string errorinfo = "";
 	if (_mapUserOnline.count(userinfo.userid))
 	{
-		errorinfo = "该账户已经登陆";
+		errorinfo = GBKToUTF8("该账户已经登陆");
 		goto LLL;
 	}
 
@@ -606,14 +670,14 @@ void CMSServer::CommandLoginReturn(int socket, DATA_PACK *datapack)
 			}
 			else
 			{
-				errorinfo = "密码错误";
+				errorinfo = GBKToUTF8("密码错误");
 				break;
 			}
 		}
 	}
 	if (errorinfo.empty() && !result)
 	{
-		errorinfo = "该用户尚未注册";
+		errorinfo = GBKToUTF8("该用户尚未注册");
 	}
 LLL:
 	/*打包结果*/
@@ -623,13 +687,13 @@ LLL:
 	{
 		data = &userinfo_return;
 		datasize = sizeof(USERINFO_RETURN);
-		Prtinf(0x8, "log---Login successfully\n");
+		PrintfInfo(0x8, "log---Login successfully");
 	}
 	else
 	{
 		data = (void*)errorinfo.c_str();
 		datasize = errorinfo.length();
-		Prtinf(0x8, "log---Login failed error info:%s\n", data);
+		PrintfInfo(0x8, "log---Login failed error info:%s", data);
 	}
 
 	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
@@ -639,8 +703,8 @@ void CMSServer::CommandLogoutReturn(int socket, DATA_PACK *datapack)
 {
 	USER_INFO userinfo;
 	memcpy(&userinfo, datapack->data, sizeof(USER_INFO));
-	Prtinf(0xd, "data---Account:%d\n", userinfo.userid);
-	Prtinf(0xd, "data---Password:%s\n", userinfo.password);
+	PrintfInfo(0xd, "data---Account:%d", userinfo.userid);
+	PrintfInfo(0xd, "data---Password:%s", userinfo.password);
 
 	/*校验登录信息*/
 	bool result = false;
@@ -652,7 +716,7 @@ void CMSServer::CommandLogoutReturn(int socket, DATA_PACK *datapack)
 	}
 	else
 	{
-		errorinfo = "该用户未登录";
+		errorinfo = GBKToUTF8("该用户未登录");
 		goto LLL;
 	}
 
@@ -664,13 +728,13 @@ LLL:
 	{
 		data = nullptr;
 		datasize = 0;
-		Prtinf(0x8, "log---Logout successfully\n");
+		PrintfInfo(0x8, "log---Logout successfully");
 	}
 	else
 	{
 		data = (void*)errorinfo.c_str();
 		datasize = errorinfo.length();
-		Prtinf(0x8, "log---Logout failed error info:%s\n", data);
+		PrintfInfo(0x8, "log---Logout failed error info:%s", data);
 	}
 
 	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
@@ -681,9 +745,9 @@ void CMSServer::CommandAddFriendReturn(int socket, DATA_PACK *datapack)
 {
 	FRIEND_INFO friend_info;
 	memcpy(&friend_info, datapack->data, sizeof(FRIEND_INFO));
-	Prtinf(0xd, "data---Account:%d\n", friend_info.userid);
-	Prtinf(0xd, "data---Friend:%d\n", friend_info.friendid);
-	Prtinf(0xd, "data---Info:%s\n", friend_info.info);
+	PrintfInfo(0xd, "data---Account:%d", friend_info.userid);
+	PrintfInfo(0xd, "data---Friend:%d", friend_info.friendid);
+	PrintfInfo(0xd, "data---Info:%s", friend_info.info);
 
 	/*校验好友信息*/
 	int usersize = 0;
@@ -693,7 +757,7 @@ void CMSServer::CommandAddFriendReturn(int socket, DATA_PACK *datapack)
 
 	if (friend_info.userid == friend_info.friendid)
 	{
-		errorinfo = "无法添加自己";
+		errorinfo = GBKToUTF8("无法添加自己");
 		goto LLL;
 	}
 
@@ -722,7 +786,7 @@ void CMSServer::CommandAddFriendReturn(int socket, DATA_PACK *datapack)
 		
 	if (!result)
 	{
-		errorinfo = "该用户尚未注册";
+		errorinfo = GBKToUTF8("该用户尚未注册");
 		goto LLL;
 	}
 
@@ -757,14 +821,14 @@ void CMSServer::CommandAddFriendReturn(int socket, DATA_PACK *datapack)
 			}
 			else
 			{
-				errorinfo = "好友已添加过";
+				errorinfo = GBKToUTF8("好友已添加过");
 			}
 			break;
 		}
 	}
 	if (errorinfo.empty() && !result)
 	{
-		errorinfo = "当前用户未注册";
+		errorinfo = GBKToUTF8("当前用户未注册");
 	}
 
 	//int sock = _mapUserOnline[friend_info.friendid];
@@ -782,13 +846,13 @@ LLL:
 	{
 		data = &friendinfo;
 		datasize = sizeof(FRIENDINFO_RETURN);
-		Prtinf(0x8, "log---Add friend successfully\n");
+		PrintfInfo(0x8, "log---Add friend successfully");
 	}
 	else
 	{
 		data = (void*)errorinfo.c_str();
 		datasize = errorinfo.length();
-		Prtinf(0x8, "log---Add friend failed error info:%s\n", data);
+		PrintfInfo(0x8, "log---Add friend failed error info:%s", data);
 	}
 
 	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
@@ -798,9 +862,9 @@ void CMSServer::CommandDelFriendReturn(int socket, DATA_PACK *datapack)
 {
 	FRIEND_INFO friendinfo;
 	memcpy(&friendinfo, datapack->data, sizeof(FRIEND_INFO));
-	Prtinf(0xd, "data---Acconunt:%d\n", friendinfo.userid);
-	Prtinf(0xd, "data---Friend:%d\n", friendinfo.friendid);
-	Prtinf(0xd, "data---Info:%s\n", friendinfo.info);
+	PrintfInfo(0xd, "data---Acconunt:%d", friendinfo.userid);
+	PrintfInfo(0xd, "data---Friend:%d", friendinfo.friendid);
+	PrintfInfo(0xd, "data---Info:%s", friendinfo.info);
 
 	/*校验好友信息*/
 	int usersize = 0;
@@ -809,13 +873,13 @@ void CMSServer::CommandDelFriendReturn(int socket, DATA_PACK *datapack)
 
 	if (!_mapUserOnline.count(friendinfo.userid))
 	{
-		errorinfo = "用户未登录";
+		errorinfo = GBKToUTF8("用户未登录");
 		goto LLL;
 	}
 
 	if (friendinfo.userid == friendinfo.friendid)
 	{
-		errorinfo = "无法删除自己";
+		errorinfo = GBKToUTF8("无法删除自己");
 		goto LLL;
 	}
 
@@ -844,14 +908,14 @@ void CMSServer::CommandDelFriendReturn(int socket, DATA_PACK *datapack)
 			}
 			if (!result)
 			{
-				errorinfo = "你没有该好友";
+				errorinfo = GBKToUTF8("你没有该好友");
 			}
 			break;
 		}
 	}
 	if (errorinfo.empty() && !result)
 	{
-		errorinfo = "当前用户尚未注册";
+		errorinfo = GBKToUTF8("当前用户尚未注册");
 	}
 
 LLL:
@@ -862,13 +926,13 @@ LLL:
 	{
 		data = nullptr;
 		datasize = 0;
-		Prtinf(0x8, "log---Del friend successfully\n");
+		PrintfInfo(0x8, "log---Del friend successfully");
 	}
 	else
 	{
 		data = (void*)errorinfo.c_str();
 		datasize = errorinfo.length();
-		Prtinf(0x8, "log---Del friend failed error info:%s\n", data);
+		PrintfInfo(0x8, "log---Del friend failed error info:%s", data);
 	}
 
 	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
@@ -882,9 +946,9 @@ void CMSServer::CommandSingleChatReturn(int socket, DATA_PACK *datapack)
 	{
 		CHATINFO chatinfo;
 		memcpy(&chatinfo, datapack->data, sizeof(chatinfo));
-		Prtinf(0xd, "data---Sender%d\n", chatinfo.useridfrom);
-		Prtinf(0xd, "data---Receiver:%d\n", chatinfo.useridto);
-		Prtinf(0xd, "data---Message:%s\n", chatinfo.info);
+		PrintfInfo(0xd, "data---Sender:%d", chatinfo.useridfrom);
+		PrintfInfo(0xd, "data---Receiver:%d", chatinfo.useridto);
+		PrintfInfo(0xd, "data---Message:%s", chatinfo.info);
 
 		userid = chatinfo.useridfrom;
 		friendid = chatinfo.useridto;
@@ -894,10 +958,10 @@ void CMSServer::CommandSingleChatReturn(int socket, DATA_PACK *datapack)
 	{
 		OSSFILEINFO fileinfo;
 		memcpy(&fileinfo, datapack->data, sizeof(fileinfo));
-		Prtinf(0xd, "data---Sender:%d\n", fileinfo.useridfrom);
-		Prtinf(0xd, "data---Receiver:%d\n", fileinfo.useridto);
-		Prtinf(0xd, "data---bucket:%s\n", fileinfo.bucket);
-		Prtinf(0xd, "data---object:%s\n", fileinfo.object);
+		PrintfInfo(0xd, "data---Sender:%d", fileinfo.useridfrom);
+		PrintfInfo(0xd, "data---Receiver:%d", fileinfo.useridto);
+		PrintfInfo(0xd, "data---bucket:%s", fileinfo.bucket);
+		PrintfInfo(0xd, "data---object:%s", fileinfo.object);
 
 		userid = fileinfo.useridfrom;
 		friendid = fileinfo.useridto;
@@ -932,7 +996,7 @@ void CMSServer::CommandSingleChatReturn(int socket, DATA_PACK *datapack)
 			}
 			if (!result)
 			{
-				errorinfo = "你还不是对方的好友";
+				errorinfo = GBKToUTF8("你还不是对方的好友");
 			}
 			friendexit = true;
 			break;
@@ -940,13 +1004,13 @@ void CMSServer::CommandSingleChatReturn(int socket, DATA_PACK *datapack)
 	}
 	if (!friendexit)
 	{
-		errorinfo = "对方已经注销账号";
+		errorinfo = GBKToUTF8("对方已经注销账号");
 		goto LLL;
 	}
 
 	if (!_mapUserOnline.count(friendid))
 	{
-		errorinfo = "好友未登录,信息将缓存，在好友上线后发送";
+		errorinfo = GBKToUTF8("好友未登录,信息将缓存，在好友上线后发送");
 
 		int datasize = 0;
 		if (datapack->datatype == CHAT_TEXT)
@@ -960,7 +1024,7 @@ void CMSServer::CommandSingleChatReturn(int socket, DATA_PACK *datapack)
 	else
 	{
 		if (!SendDataPack(_mapUserOnline[friendid], datapack))
-			errorinfo = "信息发送失败";
+			errorinfo = GBKToUTF8("信息发送失败");
 		else
 			result = true;
 	}
@@ -973,13 +1037,13 @@ LLL:
 	{
 		data = nullptr;
 		datasize = 0;
-		Prtinf(0x8, "log---Send chatinfo successfully\n");
+		PrintfInfo(0x8, "log---Send chatinfo successfully");
 	}
 	else
 	{
 		data = (void*)errorinfo.c_str();
 		datasize = errorinfo.length();
-		Prtinf(0x8, "log---Send chatinfo failed error info:%s\n", data);
+		PrintfInfo(0x8, "log---Send chatinfo failed error info:%s", data);
 	}
 
 	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
@@ -989,15 +1053,15 @@ void CMSServer::CommandFriendInfoReturn(int socket, DATA_PACK *datapack)
 {
 	USER_INFO userinfo;
 	memcpy(&userinfo, datapack->data, sizeof(USER_INFO));
-	Prtinf(0xd, "data---Account:%d\n", userinfo.userid);
-	Prtinf(0xd, "data---Password:%s\n", userinfo.password);
+	PrintfInfo(0xd, "data---Account:%d", userinfo.userid);
+	PrintfInfo(0xd, "data---Password:%s", userinfo.password);
 
 	int usersize = 0;
 	bool result = false;
 	std::string errorinfo = "";
 	if (!_mapUserOnline.count(userinfo.userid))
 	{
-		errorinfo = "用户未登录";
+		errorinfo = GBKToUTF8("用户未登录");
 		goto LLL;
 	}
 
@@ -1053,13 +1117,13 @@ LLL:
 	{
 		data = &friendinfo;
 		datasize = sizeof(ALLRIENDINFO_RETURN);
-		Prtinf(0x8, "log---Get frined info successfully\n");
+		PrintfInfo(0x8, "log---Get frined info successfully");
 	}
 	else
 	{
 		data = (void*)errorinfo.c_str();
 		datasize = errorinfo.length();
-		Prtinf(0x8, "log---Get fiend infofailed error info:%s\n", data);
+		PrintfInfo(0x8, "log---Get fiend infofailed error info:%s", data);
 	}
 
 	SendDataPackReturn(socket, (COMMANDTYPE)datapack->commandtype, RESULT(result), data, datasize);
@@ -1317,7 +1381,7 @@ void CMSServer::SenCacheInfo(unsigned int userid)
 
 void CMSServer::LoginStateNotify(int state,unsigned int userid)
 {
-	Prtinf(0x8, "log---Notify friends to go %s\n", state == COMMAND_LOGIN ? "online" : "offline");
+	PrintfInfo(0x8, "log---Notify friends to go %s", state == COMMAND_LOGIN ? "online" : "offline");
 
 	DATA_PACK datapack;
 	memset(&datapack, 0, sizeof(DATA_PACK));

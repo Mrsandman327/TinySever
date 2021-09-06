@@ -13,7 +13,7 @@ public:
 public:
 	std::string GetCurTime();
 	std::string GetExePath();
-	void Prtinf(unsigned short cr, const char *_format, ...);
+	void PrintfInfo(unsigned short cr, const char *_format, ...);
 public:
 	/*server socket*/
 	CMSSocket* _socket;
@@ -38,7 +38,7 @@ public:
 	bool SendDataPack(int socket, DATA_PACK *datapack);
 	void SendDataPackReturn(int socket, COMMANDTYPE type, RESULT result, void* data, int size);
 	/*command return*/	
-	void RecvDataProcess(int socket);	
+	void RecvDataProcess();	
 	void CommandSiginReturn(int socket, DATA_PACK *datapack);
 	void CommandSigoutReturn(int socket, DATA_PACK *datapack);
 	void CommandLoginReturn(int socket, DATA_PACK *datapack);
@@ -48,6 +48,10 @@ public:
 	void CommandSingleChatReturn(int socket, DATA_PACK *datapack);
 	void CommandFriendInfoReturn(int socket, DATA_PACK *datapack);
 	/**/
-	void UndefineDataRequst(int socket);
+	void UndefineDataRequst();
+
+	/*PageCode*/
+	std::string GBKToUTF8(const std::string& strGBK);
+	std::string UTF8ToGBK(std::string &strUtf8);
 };
 

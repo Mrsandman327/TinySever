@@ -1,5 +1,4 @@
 ﻿#pragma pack(push,1)
-
 enum COMMANDTYPE
 {
 	COMMAND_SIGIN, /*注册*/

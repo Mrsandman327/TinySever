@@ -50,7 +50,7 @@
       <PrecompiledHeader>
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
-      <Optimization>MaxSpeed</Optimization>
+      <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_WINSOCK_DEPRECATED_NO_WARNINGS;_CRT_SECURE_NO_WARNINGS;WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
@@ -81,6 +81,7 @@
   <ItemGroup>
     <ClCompile Include="cJSON.c" />
     <ClCompile Include="CJsonObject.cpp" />
+    <ClCompile Include="log.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MSServer.cpp" />
     <ClCompile Include="MSSocket.cpp" />
@@ -90,6 +91,7 @@
     <ClInclude Include="cJSON.h" />
     <ClInclude Include="CJsonObject.hpp" />
     <ClInclude Include="DataStruct.h" />
+    <ClInclude Include="log.h" />
     <ClInclude Include="MSServer.h" />
     <ClInclude Include="MSSocket.h" />
     <ClInclude Include="SocketObservable.h" />

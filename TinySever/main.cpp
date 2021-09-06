@@ -14,6 +14,10 @@
 
 int main(int argc, char *argv[])
 {
+#ifdef _WIN32
+	system("chcp 65001");
+#endif
+
 	if (argc != 3)
 	{
 		printf("arg %d error!\n", argc);
@@ -37,11 +41,7 @@ int main(int argc, char *argv[])
 
 	/*添加订阅者*/
 	socket->attach_observable(server);
-#if 0
-	socket->client_connect(argv[1], atoi(argv[2]));
 
-	getchar();
-#else
 	/*创建服务器*/
 	int sockfd = socket->sever_create(argv[1], atoi(argv[2]));
 
@@ -55,7 +55,6 @@ int main(int argc, char *argv[])
 	}
 	socket->severclose(sockfd);
 	socket->clear_observable();
-#endif
 
 	return 0;
 }
