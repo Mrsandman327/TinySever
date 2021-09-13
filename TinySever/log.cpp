@@ -1,4 +1,4 @@
-#include "log.h"
+ï»¿#include "log.h"
 
 #if _MSC_VER
 #define vsnprintf _vsnprintf
@@ -42,7 +42,7 @@ void log::initlog(const char* path, const char* exname, int maxqueuesize)
 	_logfile = slogfile;
 	_maxqueuesize = maxqueuesize;
 
-	/*_maxqueuesize > 0Ê±Ê¹ÓÃÒì²½Ä£Ê½£¬·ñÔòÊ¹ÓÃÍ¬²½*/
+	/*_maxqueuesize > 0æ—¶ä½¿ç”¨å¼‚æ­¥æ¨¡å¼ï¼Œå¦åˆ™ä½¿ç”¨åŒæ­¥*/
 	if(_maxqueuesize)
 		_pthreadpool = new ThreadPool(2, 100);
 }
@@ -64,26 +64,26 @@ void log::writelog(int level, const char *_format, ...)
 	}
 	va_end(ap);
 
-	/*Ê±¼ä*/
+	/*æ—¶é—´*/
 	time_t t = time(0);
 	char timebuf[255];
 	strftime(timebuf, 255, "%Y-%m-%d %H:%M:%S", localtime(&t));
 
-	/*log¼¶±ğ*/
+	/*logçº§åˆ«*/
 	char const *slevel[4] = { "debug", "info", "warn", "erro" };
 
-	/*logĞÅÏ¢*/
+	/*logä¿¡æ¯*/
 	char infobuffer[2048];
 	sprintf(infobuffer, "[%s:%s] %s", slevel[level], timebuf, buffer);
 
 	std::string info = infobuffer;
 
-	/*¼ÓÈëlog¶ÓÁĞ*/
+	/*åŠ å…¥logé˜Ÿåˆ—*/
 	_logqueue.push(info);
 
 	if (_maxqueuesize)
 	{
-		/*·ÅÈëÏß³Ì³Ø*/
+		/*æ”¾å…¥çº¿ç¨‹æ± */
 		_pthreadpool->append([this]{ flushlog(); });
 	}
 	else
@@ -99,15 +99,15 @@ void log::flushlog()
 		return;
 	}
 
-	/*È¡³ölogĞÅÏ¢*/
+	/*å–å‡ºlogä¿¡æ¯*/
 	std::string info = _logqueue.front();
 	_logqueue.pop();
 
-	/*Ğ´ÈëlogÎÄ¼ş*/
+	/*å†™å…¥logæ–‡ä»¶*/
 	std::shared_ptr<std::iostream> content = std::make_shared<std::fstream>(_logfile, std::ios::out | std::ios::app);
 	*content << info << std::endl;
 
-	/*Ç¿ÖÆË¢ĞÂ£¬Ğ´ÈëÁ÷»º³åÇø*/
+	/*å¼ºåˆ¶åˆ·æ–°ï¼Œå†™å…¥æµç¼“å†²åŒº*/
 	_flushmutex.lock();
 	content->flush();
 	_flushmutex.unlock();

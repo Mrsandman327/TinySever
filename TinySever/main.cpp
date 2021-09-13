@@ -15,6 +15,7 @@
 int main(int argc, char *argv[])
 {
 #ifdef _WIN32
+	/*控制台转UTF-8编码*/
 	system("chcp 65001");
 #endif
 
