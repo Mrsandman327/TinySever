@@ -3,6 +3,7 @@
 #include <string.h>
 #include <thread>
 #include <mutex>
+#include <future>
 
 #ifdef __linux__
 #include <arpa/inet.h>
@@ -335,15 +336,12 @@ bool CMSSocket::listen_skt(int s, std::string addr, int port)
 
 #if _IOMODEL_ == _NonBlocking
 #ifdef __linux__
-	std::thread thread(&CMSSocket::serverepoll_skt, this, s);
-	thread.detach();
+	std::async(&CMSSocket::serverepoll_skt, this, s);
 #else
-	std::thread thread(&CMSSocket::serverselect_skt, this, s);
-	thread.detach();
+	std::async(&CMSSocket::serverselect_skt, this, s);
 #endif
 #elif _IOMODEL_ == _Blocking
-	std::thread thread(&CMSSocket::accpet_skt, this, s);
-	thread.detach();
+	std::async(&CMSSocket::accpet_skt, this, s);
 #endif
 	return true;
 }
@@ -402,7 +400,9 @@ void CMSSocket::serverselect_skt(int s)
 
 				/* 通知订阅者 */
 				setsocketevent(clientaccpet);
-				notify_observable(clientfd);
+				//notify_observable(clientfd);
+				callback func = std::bind(&CMSSocket::notify_observable, this, clientfd);
+				_pthreadpool->append(func);
 				//printf("ip=%s\n", inet_ntoa(clientaddr.sin_addr));
 
 				continue;
@@ -453,11 +453,15 @@ void CMSSocket::serverselect_skt(int s)
 				}
 				else
 				{
-					recvdata data;
-					data.socket = _clientsocklist[i];
-					memcpy(&data.buffer, rbuffer, DATAPACKETSIZE);
-					std::shared_ptr<recvdata> recvda = std::make_shared<recvdata>(data);
-					_dataqueue.push(recvda);
+					do
+					{
+						std::lock_guard<std::mutex> lock(_mutexdata);
+						recvdata data;
+						data.socket = _clientsocklist[i];
+						memcpy(&data.buffer, rbuffer, DATAPACKETSIZE);
+						std::shared_ptr<recvdata> recvda = std::make_shared<recvdata>(data);
+						_dataqueue.push(recvda);
+					} while (0);
 
 					/* 通知订阅者 */
 					if (datalen == DATAPACKETSIZE)
@@ -551,7 +555,9 @@ void CMSSocket::serverepoll_skt(int s)
 
 					/* 通知订阅者 */
 					setsocketevent(clientaccpet);
-					notify_observable(clientfd);
+					//notify_observable(clientfd);
+					callback func = std::bind(&CMSSocket::notify_observable, this, clientfd);
+					_pthreadpool->append(func);
 
 					/*将新的fd添加到epoll的监听队列中*/
 					addepollfd_skt(epfd,clientfd,true);
@@ -580,7 +586,9 @@ void CMSSocket::serverepoll_skt(int s)
 
 						/* 通知订阅者 */
 						setsocketevent(clientdiscon);
-						notify_observable(sockfd);
+						//notify_observable(sockfd);
+						callback func = std::bind(&CMSSocket::notify_observable, this, sockfd);
+						_pthreadpool->append(func);
 
 						clientclose(sockfd);
 					}
@@ -593,10 +601,14 @@ void CMSSocket::serverepoll_skt(int s)
 				}
 				else
 				{
-					recvdata data;
-					memcpy(&data, buf, DATAPACKETSIZE);
-					std::shared_ptr<recvdata> recvda = std::make_shared<recvdata>(data);
-					_dataqueue.push(recvda);
+					do
+					{
+						std::lock_guard<std::mutex> lock(_mutexdata);
+						recvdata data;
+						memcpy(&data, buf, DATAPACKETSIZE);
+						std::shared_ptr<recvdata> recvda = std::make_shared<recvdata>(data);
+						_dataqueue.push(recvda);
+					} while (0);
 
 					/* 通知订阅者 */
 					if (datalen == DATAPACKETSIZE)
@@ -648,8 +660,7 @@ void CMSSocket::accpet_skt(int s)
 			setsocketevent(clientaccpet);
 			notify_observable(sockfd);
 
-			std::thread thread(&CMSSocket::severreceive_skt, this, sockfd);
-			thread.detach();
+			std::async(&CMSSocket::severreceive_skt, this, sockfd);
 		}
 	}
 	closesocket(s);
@@ -671,10 +682,14 @@ void CMSSocket::clientreceive_skt(int s)
 		}
 		else
 		{
-			recvdata data;
-			memcpy(&data, buf, DATAPACKETSIZE);
-			std::shared_ptr<recvdata> recvda = std::make_shared<recvdata>(data);
-			_dataqueue.push(recvda);
+			do
+			{
+				std::lock_guard<std::mutex> lock(_mutexdata);
+				recvdata data;
+				memcpy(&data, buf, DATAPACKETSIZE);
+				std::shared_ptr<recvdata> recvda = std::make_shared<recvdata>(data);
+				_dataqueue.push(recvda);
+			} while (0);
 
 			/* 通知订阅者 */
 			if (datalen == DATAPACKETSIZE)
@@ -706,10 +721,15 @@ void CMSSocket::severreceive_skt(int s)
 		}
 		else
 		{
-			recvdata data;
-			memcpy(&data, buf, DATAPACKETSIZE);
-			std::shared_ptr<recvdata> recvda = std::make_shared<recvdata>(data);
-			_dataqueue.push(recvda);
+			do
+			{
+				std::lock_guard<std::mutex> lock(_mutexdata);
+				recvdata data;
+				memcpy(&data, buf, DATAPACKETSIZE);
+				std::shared_ptr<recvdata> recvda = std::make_shared<recvdata>(data);
+				_dataqueue.push(recvda);
+			} while (0);
+
 
 			/* 通知订阅者 */
 			if (datalen == DATAPACKETSIZE)
@@ -763,7 +783,7 @@ bool CMSSocket::get_recvbuf(int &socket, char **buffer)
 	}
 
 	do{
-		std::lock_guard<std::mutex> lock(_mutex);
+		std::lock_guard<std::mutex> lock(_mutexdata);
 		std::shared_ptr<recvdata> pdata;
 		pdata = _dataqueue.front();
 		_dataqueue.pop();

@@ -1,4 +1,4 @@
-#include "ThreadPool.h"
+ï»¿#include "ThreadPool.h"
 
 ThreadPool::ThreadPool(int threadnum, int maxwork) :
 	_threadnum(threadnum),
@@ -11,7 +11,7 @@ ThreadPool::ThreadPool(int threadnum, int maxwork) :
 		{
 			//std::thread thread(&ThreadPool::run, this);
 			//thread.detach();
-			///*thread²»¿É¸´ÖÆ£¬µ«ÊÇ¿ÉÒÔÒÆ¶¯*/
+			///*threadä¸å¯å¤åˆ¶ï¼Œä½†æ˜¯å¯ä»¥ç§»åŠ¨*/
 			//_pool.push_back(std::move(thread));
 
 			_pool.emplace_back([this]{run(); });
@@ -25,7 +25,7 @@ ThreadPool::~ThreadPool()
 	_threadrun = false;
 	_conv.notify_all();
 
-	/* µÈ´ıÈÎÎñ½áÊø£¬ Ç°Ìá£ºÏß³ÌÒ»¶¨»áÖ´ĞĞÍê */
+	/* ç­‰å¾…ä»»åŠ¡ç»“æŸï¼Œ å‰æï¼šçº¿ç¨‹ä¸€å®šä¼šæ‰§è¡Œå®Œ */
 	for (std::thread& thread : _pool)
 	{
 		if (thread.joinable())
@@ -56,11 +56,20 @@ void ThreadPool::run()
 	while (_threadrun)
 	{
 		std::unique_lock<std::mutex> lock(_mutex);
-		/*Ñ­»·ÅĞ¶Ï£¬·ÀÖ¹¼Ù»½ĞÑ*/
+#if 0
+		/*å¾ªç¯åˆ¤æ–­ï¼Œé˜²æ­¢å‡å”¤é†’*/
 		while (_workqueue.size() == 0)
 		{
 			_conv.wait(lock);
 		}
+#else 
+		/*waitå‡½æ•°æœ‰ç¬¬äºŒä¸ªå‚æ•°ä¹Ÿèƒ½é˜²æ­¢å‡å”¤é†’*/
+		_conv.wait(lock, [this]{
+			if(_workqueue.size() == 0)
+				return false;
+			return true;
+		});
+#endif	
 		if (!_threadrun)
 			break;
 

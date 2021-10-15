@@ -37,6 +37,7 @@ private:
 	socketevent _evnet;
 
 	/*data*/
+	std::mutex _mutexdata;
 	struct recvdata{
 		int socket;
 		char buffer[DATAPACKETSIZE];
@@ -45,8 +46,6 @@ private:
 
 	/*threadpool*/
 	ThreadPool *_pthreadpool;
-
-	std::mutex _mutex;
 public:
 	/*Observable*/
 	void attach_observable(CSocketObservable *observer);

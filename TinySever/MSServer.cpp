@@ -311,7 +311,7 @@ void CMSServer::UndefineDataRequst()
 
 		/*应答包头*/
 		char head[128];
-		sprintf(head, "HTTP/1.1 200 OK\r\nConrent-Type:%s\r\n\r\n", mime);
+		sprintf(head, "HTTP/1.1 200 OK\r\nContent-Type:%s;;charset=utf-8\r\n\r\n", mime);
 		int headlen = strlen(head);
 
 		/*应答包内容*/
@@ -330,8 +330,7 @@ void CMSServer::UndefineDataRequst()
 			if (0 == _socket->send_skt(clientsocket, (char*)buffer, datalen))
 			{
 				headlen = 0;
-			}
-			
+			}	
 		}
 	}
 	delete[] buffer;

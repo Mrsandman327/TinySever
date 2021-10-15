@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <thread>
 #include <mutex>
 #include <queue>
@@ -12,16 +12,16 @@ public:
 	ThreadPool(int threadnum = 1, int maxwork = 10000);
 	~ThreadPool();
 public:
-	std::vector<std::thread> _pool;								/*Ïß³Ì³Ø*/
+	std::vector<std::thread> _pool;								/*çº¿ç¨‹æ± */
 public:
 	bool append(callback func);
 private:
 	bool _threadrun;
-	int _threadnum;												/*Ïß³Ì³ØÖĞµÄÏß³ÌÊı*/
-	int _maxwork;												/*×î´ó¹¤×÷Êı*/
+	int _threadnum;												/*çº¿ç¨‹æ± ä¸­çš„çº¿ç¨‹æ•°*/
+	int _maxwork;												/*æœ€å¤§å·¥ä½œæ•°*/
 	std::mutex _mutex;
 	std::condition_variable _conv;
 	std::queue<callback> _workqueue;
 private:									
-	void run();													/*¹¤×÷Ïß³ÌÔËĞĞµÄº¯Êı£¬Ëü²»¶Ï´Ó¹¤×÷¶ÓÁĞÖĞÈ¡³öÈÎÎñ²¢Ö´ĞĞÖ®*/
+	void run();													/*å·¥ä½œçº¿ç¨‹è¿è¡Œçš„å‡½æ•°ï¼Œå®ƒä¸æ–­ä»å·¥ä½œé˜Ÿåˆ—ä¸­å–å‡ºä»»åŠ¡å¹¶æ‰§è¡Œä¹‹*/
 };
