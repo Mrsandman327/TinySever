@@ -4,6 +4,7 @@
 #include <queue>
 #include <functional>
 #include <condition_variable>
+#include <atomic>
 
 typedef std::function<void()> callback;
 class ThreadPool
@@ -16,7 +17,7 @@ public:
 public:
 	bool append(callback func);
 private:
-	bool _threadrun;
+	std::atomic<bool> _threadrun;
 	int _threadnum;												/*线程池中的线程数*/
 	int _maxwork;												/*最大工作数*/
 	std::mutex _mutex;

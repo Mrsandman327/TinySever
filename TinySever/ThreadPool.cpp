@@ -31,6 +31,12 @@ ThreadPool::~ThreadPool()
 		if (thread.joinable())
 			thread.join();
 	}
+
+	if (!_workqueue.empty())
+	{
+		std::queue<callback> empty;
+		swap(empty, _workqueue);
+	}
 	_pool.clear();
 }
 
@@ -55,27 +61,32 @@ void ThreadPool::run()
 {
 	while (_threadrun)
 	{
+		printf("开始执行，threadid:%d\n", std::this_thread::get_id());
 		std::unique_lock<std::mutex> lock(_mutex);
 #if 0
 		/*循环判断，防止假唤醒*/
-		while (_workqueue.size() == 0)
+		while (_workqueuee.empty() && _threadrun)
 		{
 			_conv.wait(lock);
 		}
 #else 
 		/*wait函数有第二个参数也能防止假唤醒*/
 		_conv.wait(lock, [this]{
-			if(_workqueue.size() == 0)
+			if (_workqueue.empty() && _threadrun)
 				return false;
 			return true;
 		});
 #endif	
+
 		if (!_threadrun)
 			break;
 
-		callback func = _workqueue.front();
-		_workqueue.pop();
+		if (!_workqueue.empty())
+		{ 
+			callback func = _workqueue.front();
+			_workqueue.pop();
 
-		func();
+			func();
+		}
 	}
 }
