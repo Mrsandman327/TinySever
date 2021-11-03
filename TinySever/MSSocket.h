@@ -1,4 +1,10 @@
-﻿#pragma once
+﻿/*******************************************************************************
+* @file     MSSocket.h
+* @brief    socket
+* @author   linsn
+* @date:    2021-9-16
+******************************************************************************/
+#pragma once
 #include <string>
 #include <list>
 #include <vector>

@@ -56,6 +56,8 @@ int main(int argc, char *argv[])
 	}
 	socket->severclose(sockfd);
 	socket->clear_observable();
+	delete server;
+	delete socket;
 
 	return 0;
 }

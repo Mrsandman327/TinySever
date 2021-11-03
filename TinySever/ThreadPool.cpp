@@ -9,13 +9,7 @@ ThreadPool::ThreadPool(int threadnum, int maxwork) :
 	{
 		for (int i = 0; i < _threadnum; ++i)
 		{
-			//std::thread thread(&ThreadPool::run, this);
-			//thread.detach();
-			///*thread不可复制，但是可以移动*/
-			//_pool.push_back(std::move(thread));
-
-			_pool.emplace_back([this]{run(); });
-			
+			_pool.emplace_back([this]{ run(); });
 		}
 	}
 }
@@ -61,7 +55,6 @@ void ThreadPool::run()
 {
 	while (_threadrun)
 	{
-		printf("开始执行，threadid:%d\n", std::this_thread::get_id());
 		std::unique_lock<std::mutex> lock(_mutex);
 #if 0
 		/*循环判断，防止假唤醒*/

@@ -1,4 +1,10 @@
-﻿#pragma once
+﻿/*******************************************************************************
+* @file     ThreadPool.h
+* @brief    threadpool
+* @author   linsn
+* @date:    2021-9-16
+******************************************************************************/
+#pragma once
 #include <thread>
 #include <mutex>
 #include <queue>
